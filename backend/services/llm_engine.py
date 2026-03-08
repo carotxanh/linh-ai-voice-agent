@@ -72,14 +72,14 @@ class LLMEngine:
         history: Optional[List[Dict[str, str]]] = None
     ) -> AsyncGenerator[str, None]:
         """
-        Generate AI response as a stream (for real-time TTS)
+        Generate AI response as a stream with sentence buffering
         
         Args:
             transcript: User's transcribed speech
             history: Conversation history
         
         Yields:
-            Chunks of generated text
+            Complete sentences ready for TTS
         """
         try:
             # Build the full prompt
@@ -92,18 +92,52 @@ class LLMEngine:
             
             messages += f"Khách hàng: {transcript}\nTổng đài viên:"
             
-            # Note: Streaming support may vary with new API
-            # For now, generate full response and yield it
-            response = self.client.models.generate_content(
+            logger.info(f"Streaming LLM response for: {transcript[:50]}...")
+            
+            # Stream response from Gemini (synchronous iterator)
+            response_stream = self.client.models.generate_content_stream(
                 model=self.model_name,
                 contents=messages
             )
             
-            # Yield the full response (can be enhanced with actual streaming if API supports it)
-            yield response.text.strip()
+            # Sentence buffer to accumulate tokens
+            buffer = ""
+            sentence_endings = {'.'}  # Only split by period for complete sentences
+            
+            # Process synchronous stream in async context
+            for chunk in response_stream:
+                if not hasattr(chunk, 'text') or not chunk.text:
+                    continue
+                
+                # Add chunk to buffer
+                buffer += chunk.text
+                logger.debug(f"Buffer: {buffer}")
+                
+                # Check if we have a complete sentence (ending with period)
+                while buffer:
+                    # Find period
+                    pos = buffer.find('.')
+                    
+                    # If found a period, yield the sentence
+                    if pos != -1:
+                        sentence = buffer[:pos + 1].strip()
+                        if sentence:
+                            logger.info(f"✅ Yielding sentence: {sentence}")
+                            yield sentence
+                        buffer = buffer[pos + 1:].lstrip()
+                    else:
+                        # No complete sentence yet, wait for more chunks
+                        break
+            
+            # Yield any remaining text in buffer
+            if buffer.strip():
+                logger.info(f"✅ Yielding final buffer: {buffer.strip()}")
+                yield buffer.strip()
+            
+            logger.info("✅ LLM streaming complete")
                     
         except Exception as e:
-            logger.error(f"Error in streaming response: {e}")
+            logger.error(f"❌ Error in streaming response: {e}", exc_info=True)
             yield "Xin lỗi, tôi gặp sự cố khi xử lý yêu cầu của bạn."
     
     def reset_conversation(self):

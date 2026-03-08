@@ -45,14 +45,29 @@ class WebSocketHandler:
         
     async def connect(self):
         """Accept WebSocket connection"""
-        await self.websocket.accept()
-        self.is_connected = True
-        
-        # Connect STT service
-        await self.stt.connect()
-        
-        # Send connected status
-        await self.send_status("connected", "WebSocket connection established")
+        try:
+            await self.websocket.accept()
+            self.is_connected = True
+            
+            logger.info("✅ WebSocket accepted, connecting to STT...")
+            
+            # Connect STT service
+            try:
+                await self.stt.connect()
+                logger.info("✅ STT connected successfully")
+            except Exception as stt_error:
+                logger.error(f"❌ Failed to connect STT: {stt_error}", exc_info=True)
+                await self.send_error("STT_CONNECTION_ERROR", f"Failed to connect to speech recognition: {str(stt_error)}")
+                raise
+            
+            # Send connected status
+            await self.send_status("connected", "WebSocket connection established")
+            logger.info("✅ Connection fully established")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to establish connection: {e}", exc_info=True)
+            self.is_connected = False
+            raise
         
     async def disconnect(self):
         """Close WebSocket connection"""
@@ -122,6 +137,7 @@ class WebSocketHandler:
     async def send_audio(self, audio_data: str, format: str = 'pcm', sample_rate: int = 24000):
         """Send audio response"""
         audio = AudioResponse(data=audio_data, format=format, sample_rate=sample_rate)
+        logger.info(f"🔊 Sending audio chunk: {len(audio_data)} chars (base64), format={format}")
         await self.send_message(audio.dict())
     
     async def handle_audio_chunk(self, data: dict):
@@ -155,30 +171,66 @@ class WebSocketHandler:
     async def handle_committed_transcript(self, text: str):
         """
         Handle committed transcript from STT
-        FOR NOW: Just send to frontend, NO LLM/TTS
+        Implements streaming pipeline: LLM → Sentence Buffer → TTS → Frontend
         """
         try:
             # Send committed transcript to frontend
             await self.send_transcript_committed(text)
             
-            logger.info(f"✅ Transcript sent to frontend: {text}")
+            logger.info(f"✅ Transcript committed: {text}")
             
-            # Reset state
+            # Start streaming pipeline
+            await self.send_status("thinking", "Đang suy nghĩ...")
+            
+            # Stream LLM response with sentence buffering
+            full_response = ""
+            sentence_count = 0
+            
+            try:
+                async for sentence in self.llm.generate_response_stream(text, self.conversation_history):
+                    if not sentence.strip():
+                        continue
+                    
+                    sentence_count += 1
+                    full_response += sentence + " "
+                    logger.info(f"🔊 Sentence {sentence_count}: {sentence}")
+                    
+                    # Update status to speaking
+                    if sentence_count == 1:
+                        await self.send_status("speaking", "Đang trả lời...")
+                    
+                    # Stream TTS for this sentence
+                    try:
+                        chunk_count = 0
+                        async for audio_chunk in self.tts.synthesize_speech_stream_base64(sentence):
+                            chunk_count += 1
+                            await self.send_audio(audio_chunk, format='mp3', sample_rate=22050)
+                        logger.info(f"✅ Sent {chunk_count} audio chunks for sentence {sentence_count}")
+                    except Exception as tts_error:
+                        logger.error(f"❌ TTS error for sentence: {tts_error}", exc_info=True)
+                        # Continue with next sentence even if TTS fails
+                
+                logger.info(f"✅ Streamed {sentence_count} sentences")
+                
+            except Exception as stream_error:
+                logger.error(f"❌ Streaming error: {stream_error}", exc_info=True)
+                await self.send_error("STREAMING_ERROR", str(stream_error))
+            
+            # Add AI response to conversation history
+            if full_response.strip():
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": full_response.strip()
+                })
+                logger.info(f"✅ Full response: {full_response.strip()}")
+            
+            # Reset state and keep STT connection alive
             self.is_processing = False
-            await self.send_status("idle", "Ready")
-            
-            # TODO: Uncomment when ready to test LLM/TTS
-            # # Generate AI response
-            # await self.send_status("thinking", "Generating response")
-            # response_text = await self.llm.generate_response(text, self.conversation_history)
-            # 
-            # # Synthesize speech
-            # await self.send_status("speaking", "Generating audio")
-            # audio_data = await self.tts.synthesize_speech_base64(response_text)
-            # await self.send_audio(audio_data, format='mp3', sample_rate=22050)
+            await self.send_status("idle", "Sẵn sàng")
+            logger.info("✅ Ready for next input, STT connection maintained")
             
         except Exception as e:
-            logger.error(f"Error handling committed transcript: {e}")
+            logger.error(f"❌ Error in streaming pipeline: {e}", exc_info=True)
             await self.send_error("PIPELINE_ERROR", str(e))
             self.is_processing = False
     

@@ -24,8 +24,8 @@ export default function RealtimeTranscription() {
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
     commitStrategy: CommitStrategy.VAD,
-    vadSilenceThresholdSecs: 1.5,
-    vadThreshold: 0.4,
+    vadSilenceThresholdSecs: 0.8, // Reduced from 1.5s for faster response
+    vadThreshold: 0.01, // Lowered from 0.4 for better sensitivity
     backendUrl, // CRITICAL: Connect to Backend, not ElevenLabs
     onPartialTranscript: data => {
       console.log('🎤 onPartialTranscript called:', data);
