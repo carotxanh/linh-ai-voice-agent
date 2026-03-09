@@ -1,3 +1,4 @@
+import RippleText from '../components/RippleText'
 import { steps } from '../data/constants'
 
 export default function ProcessSection() {
@@ -5,7 +6,9 @@ export default function ProcessSection() {
     <section className="section" id="quy-trinh">
       <div className="section-heading center">
         <p className="eyebrow">Triển khai</p>
-        <h2>3 bước để đưa LINH vào vận hành</h2>
+        <RippleText>
+          <h2>3 bước để đưa LINH vào vận hành</h2>
+        </RippleText>
       </div>
 
       <div className="steps-grid">

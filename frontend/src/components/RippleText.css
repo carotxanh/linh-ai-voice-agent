@@ -1,5 +1,16 @@
 .ripple-text-container {
   position: relative;
+  overflow: visible;
+}
+
+.ripple-portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
   overflow: hidden;
 }
 
@@ -19,7 +30,24 @@
   animation: ripple-animation 1s ease-out;
 }
 
+.ripple-fullscreen {
+  animation: ripple-animation-large 1s ease-out;
+}
+
 @keyframes ripple-animation {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  100% {
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+  }
+}
+
+@keyframes ripple-animation-large {
   0% {
     width: 0;
     height: 0;

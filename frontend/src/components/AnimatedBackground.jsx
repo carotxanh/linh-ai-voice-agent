@@ -20,7 +20,7 @@ export default function AnimatedBackground() {
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
 
-    // Wave parameters
+    // Wave parameters - back to original dark colors
     const waves = [
       { amplitude: 30, frequency: 0.02, speed: 0.5, offset: 0, color: 'rgba(255, 107, 53, 0.03)' },
       { amplitude: 40, frequency: 0.015, speed: 0.3, offset: 100, color: 'rgba(247, 147, 30, 0.02)' },

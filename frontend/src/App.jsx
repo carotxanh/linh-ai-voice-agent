@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useConversation } from '@elevenlabs/react'
 import AnimatedBackground from './components/AnimatedBackground'
+import ClickEffect from './components/ClickEffect'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import LoginModal from './components/LoginModal'
@@ -66,6 +67,7 @@ function App() {
   return (
     <div className="page-shell">
       <AnimatedBackground />
+      <ClickEffect />
       <Header onLoginClick={() => setShowLogin(true)} />
 
       <main>

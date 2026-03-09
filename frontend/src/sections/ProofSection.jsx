@@ -1,10 +1,14 @@
+import RippleText from '../components/RippleText'
+
 export default function ProofSection() {
   return (
     <section className="section" id="minh-chung">
       <div className="proof-card glass-card">
         <div className="proof-copy">
           <p className="eyebrow">Minh chứng dự án</p>
-          <h2>Giải nhì VNPT AI Hackathon - AI Voice Agent</h2>
+          <RippleText>
+            <h2>Giải nhì VNPT AI Hackathon - AI Voice Agent</h2>
+          </RippleText>
 
           <ul className="proof-points">
             <li>Tên AI assistant: LINH</li>

@@ -1,0 +1,154 @@
+.click-effects-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9998;
+  overflow: hidden;
+}
+
+.click-effect {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Water droplet ripples */
+.droplet-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 107, 53, 0.6);
+  animation: ripple-expand 1.5s ease-out;
+}
+
+.ring-1 {
+  animation-delay: 0s;
+}
+
+.ring-2 {
+  animation-delay: 0.15s;
+}
+
+.ring-3 {
+  animation-delay: 0.3s;
+}
+
+@keyframes ripple-expand {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  100% {
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+  }
+}
+
+/* Water splash particles */
+.splash-particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.6);
+}
+
+.particle-1 {
+  animation: splash-1 0.8s ease-out;
+}
+
+.particle-2 {
+  animation: splash-2 0.8s ease-out;
+}
+
+.particle-3 {
+  animation: splash-3 0.8s ease-out;
+}
+
+.particle-4 {
+  animation: splash-4 0.8s ease-out;
+}
+
+.particle-5 {
+  animation: splash-5 0.8s ease-out;
+}
+
+.particle-6 {
+  animation: splash-6 0.8s ease-out;
+}
+
+@keyframes splash-1 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(30px, -40px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes splash-2 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-30px, -40px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes splash-3 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(40px, -20px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes splash-4 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-40px, -20px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes splash-5 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(25px, -50px) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes splash-6 {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-25px, -50px) scale(0);
+    opacity: 0;
+  }
+}
