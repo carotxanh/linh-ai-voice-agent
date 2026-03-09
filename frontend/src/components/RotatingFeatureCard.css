@@ -1,0 +1,90 @@
+.rotating-feature-card-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.rotating-feature-card {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(22, 24, 30, 0.95), rgba(12, 13, 18, 0.98));
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  padding: 18px 20px;
+  min-height: 72px;
+  transition: opacity 0.35s ease;
+  width: 100%;
+  max-width: 520px;
+}
+
+.rotating-feature-bars {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0;
+  margin-top: 14px;
+  position: relative;
+}
+
+.rotating-feature-bar {
+  width: 28px;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  margin-left: -6px;
+  transition: height 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.rotating-feature-bar:first-child {
+  margin-left: 0;
+}
+
+.rotating-feature-bar.active {
+  height: 10px;
+  background: var(--bar-color, #ff6b35);
+  box-shadow: 0 0 14px rgba(255, 107, 53, 0.5);
+  z-index: 1;
+}
+
+.rotating-feature-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  animation: rotatingFeatureFade 0.4s ease-out;
+}
+
+@keyframes rotatingFeatureFade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rotating-feature-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.rotating-feature-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.rotating-feature-text {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f3f6;
+  line-height: 1.4;
+}
