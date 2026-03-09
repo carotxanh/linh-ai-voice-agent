@@ -6,6 +6,8 @@ import './index.css'
 import App from './App.jsx'
 import Portal from './pages/Portal.jsx'
 import CallHistory from './pages/CallHistory.jsx'
+import KnowledgeBase from './pages/KnowledgeBase.jsx'
+import Settings from './pages/Settings.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -25,6 +27,22 @@ createRoot(document.getElementById('root')).render(
           element={
             <ProtectedRoute>
               <CallHistory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/knowledge"
+          element={
+            <ProtectedRoute>
+              <KnowledgeBase />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           }
         />

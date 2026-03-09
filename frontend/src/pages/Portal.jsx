@@ -1,52 +1,62 @@
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import RippleText from '../components/RippleText'
-import { IconPhone, IconClock, IconCheck, IconStar, IconWarning, IconChart } from '../components/DashboardIcons'
 import './Portal.css'
+
+function MIcon({ name, className = '', filled = false, size = 24 }) {
+  return (
+    <span
+      className={`material-symbols-rounded ${className}`}
+      style={{
+        fontSize: size,
+        fontVariationSettings: filled ? "'FILL' 1" : "'FILL' 0",
+      }}
+    >
+      {name}
+    </span>
+  )
+}
 
 export default function Portal() {
   const navigate = useNavigate()
 
   const stats = [
-    { label: 'Tổng cuộc gọi hôm nay', value: '24', icon: IconPhone, change: '+12% so với hôm qua', positive: true },
-    { label: 'Đang xử lý', value: '3', icon: IconClock, change: 'Đang hoạt động' },
-    { label: 'Hoàn thành', value: '21', icon: IconCheck, change: '87.5% tỷ lệ thành công', positive: true },
-    { label: 'Tỷ lệ hài lòng', value: '94%', icon: IconStar, change: '+2% so với tuần trước', positive: true },
+    { label: 'Tổng cuộc gọi hôm nay', value: '24', icon: 'call', change: '+12% so với hôm qua', positive: true },
+    { label: 'Đang xử lý', value: '3', icon: 'schedule', change: 'Đang hoạt động' },
+    { label: 'Hoàn thành', value: '21', icon: 'check_circle', change: '87.5% tỷ lệ thành công', positive: true },
+    { label: 'Tỷ lệ hài lòng', value: '94%', icon: 'star', change: '+2% so với tuần trước', positive: true },
   ]
 
   return (
     <DashboardLayout>
-      <div className="page-header">
-        <div className="page-header-left">
-          <RippleText>
-            <h1>Tổng quan</h1>
-          </RippleText>
-          <p className="page-subtitle">Quản lý hệ thống AI Voice Agent</p>
+      <div className="portal-page">
+        <div className="portal-header">
+          <div className="portal-header-left">
+            <RippleText>
+              <h1>Tổng quan</h1>
+            </RippleText>
+            <p className="portal-subtitle">Quản lý hệ thống AI Voice Agent</p>
+          </div>
+          <div className="portal-header-actions">
+            <button className="btn-secondary" onClick={() => navigate('/')}>
+              Về trang chủ
+            </button>
+          </div>
         </div>
-        <div className="page-header-actions">
-          <button className="btn-secondary" onClick={() => navigate('/')}>
-            Về trang chủ
-          </button>
-        </div>
-      </div>
 
-      <div className="page-content">
         <div className="stats-grid">
-          {stats.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <div key={stat.label} className="stat-card">
-                <div className="stat-header">
-                  <span className="stat-label">{stat.label}</span>
-                  <Icon className="stat-icon" />
-                </div>
-                <div className="stat-value">{stat.value}</div>
-                <div className={stat.positive ? 'stat-change positive' : 'stat-change'}>
-                  {stat.change}
-                </div>
+          {stats.map((stat) => (
+            <div key={stat.label} className="stat-card">
+              <div className="stat-header">
+                <span className="stat-label">{stat.label}</span>
+                <MIcon name={stat.icon} className="stat-icon" size={22} filled />
               </div>
-            )
-          })}
+              <div className="stat-value">{stat.value}</div>
+              <div className={stat.positive ? 'stat-change positive' : 'stat-change'}>
+                {stat.change}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="content-grid">
@@ -60,7 +70,7 @@ export default function Portal() {
             <div className="activity-list">
               <div className="activity-item">
                 <div className="activity-icon success">
-                  <IconPhone className="icon" />
+                  <MIcon name="call" size={18} />
                 </div>
                 <div className="activity-content">
                   <p className="activity-title">Cuộc gọi từ 0901234567</p>
@@ -70,7 +80,7 @@ export default function Portal() {
               </div>
               <div className="activity-item">
                 <div className="activity-icon success">
-                  <IconCheck className="icon" />
+                  <MIcon name="check_circle" size={18} />
                 </div>
                 <div className="activity-content">
                   <p className="activity-title">Đặt vé thành công - Nguyễn Văn A</p>
@@ -80,7 +90,7 @@ export default function Portal() {
               </div>
               <div className="activity-item">
                 <div className="activity-icon warning">
-                  <IconWarning className="icon" />
+                  <MIcon name="warning" size={18} />
                 </div>
                 <div className="activity-content">
                   <p className="activity-title">Chuyển tiếp nhân viên - Khiếu nại</p>
@@ -90,7 +100,7 @@ export default function Portal() {
               </div>
               <div className="activity-item">
                 <div className="activity-icon info">
-                  <IconChart className="icon" />
+                  <MIcon name="bar_chart" size={18} />
                 </div>
                 <div className="activity-content">
                   <p className="activity-title">Báo cáo ngày đã được tạo</p>

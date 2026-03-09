@@ -1,40 +1,83 @@
-/* Dashboard Layout - Orange & Black Theme with Animated Background */
+/* Dashboard Layout - Floating Sidebar */
 .dashboard-container {
   display: flex;
   min-height: 100vh;
-  background: #0a0a0a;
+  width: 100%;
+  background: transparent;
   color: #e5e5e5;
   position: relative;
+  overflow-x: hidden;
 }
 
-/* Sidebar */
+/* ============ SIDEBAR OVERLAY (click-away backdrop) ============ */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  z-index: 199;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============ SIDEBAR (floating) ============ */
 .dashboard-sidebar {
-  width: 240px;
-  background: rgba(26, 26, 26, 0.95);
-  backdrop-filter: blur(10px);
-  border-right: 1px solid rgba(255, 107, 53, 0.1);
+  width: 260px;
+  background: rgba(18, 18, 18, 0.95);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 107, 53, 0.08);
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 0;
+  padding: 1rem 0;
   position: fixed;
-  height: 100vh;
-  left: 0;
-  top: 0;
-  z-index: 100;
+  height: calc(100vh - 24px);
+  left: 12px;
+  top: 12px;
+  z-index: 200;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.35s ease;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 107, 53, 0.06);
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+/* Collapsed = Icon Rail (also floats) */
+.dashboard-sidebar.collapsed {
+  width: 68px;
+}
+
+/* Sidebar Top Row */
+.sidebar-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+  min-height: 48px;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0 1.5rem;
-  margin-bottom: 2rem;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .sidebar-logo {
   width: 32px;
   height: 32px;
   border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .sidebar-brand-text {
@@ -46,12 +89,50 @@
   background-clip: text;
 }
 
+/* Collapse Button */
+.sidebar-collapse-btn {
+  background: rgba(255, 107, 53, 0.08);
+  border: 1px solid rgba(255, 107, 53, 0.12);
+  color: #a0a0a0;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-btn:hover {
+  background: rgba(255, 107, 53, 0.15);
+  border-color: #ff6b35;
+  color: #ff6b35;
+}
+
+/* When collapsed, center the toggle button */
+.dashboard-sidebar.collapsed .sidebar-top-row {
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.dashboard-sidebar.collapsed .sidebar-collapse-btn {
+  margin: 0 auto;
+}
+
+/* Sidebar Nav */
 .sidebar-nav {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   padding: 0 0.75rem;
+}
+
+.dashboard-sidebar.collapsed .sidebar-nav {
+  padding: 0 0.5rem;
 }
 
 .sidebar-nav-item {
@@ -67,6 +148,14 @@
   transition: all 0.2s;
   font-size: 0.9rem;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Collapsed nav items: center icon */
+.dashboard-sidebar.collapsed .sidebar-nav-item {
+  justify-content: center;
+  padding: 0.75rem;
 }
 
 .sidebar-nav-item:hover {
@@ -80,18 +169,26 @@
 }
 
 .nav-item-icon {
-  width: 20px;
-  height: 20px;
   color: currentColor;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
+/* Sidebar User */
 .sidebar-user {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1.25rem;
   margin-top: auto;
   border-top: 1px solid #2a2a2a;
+  overflow: hidden;
+}
+
+.dashboard-sidebar.collapsed .sidebar-user {
+  flex-direction: column;
+  padding: 0.75rem 0.5rem;
+  gap: 0.5rem;
 }
 
 .sidebar-user-avatar {
@@ -153,17 +250,24 @@
   color: #ff6b35;
 }
 
-.sidebar-logout-btn .icon {
-  width: 18px;
-  height: 18px;
+.collapsed-logout {
+  margin: 0 auto;
 }
 
-/* Main Content */
+/* ============ MAIN CONTENT ============ */
+/* Main content always takes full width — sidebar floats on top */
 .dashboard-main {
   flex: 1;
-  margin-left: 240px;
-  overflow-y: auto;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
   background: transparent;
   position: relative;
   z-index: 1;
+  padding-left: 80px;
+}
+
+/* Hide sidebar logo when collapsed */
+.dashboard-sidebar.collapsed .sidebar-brand {
+  display: none;
 }
