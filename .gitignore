@@ -1,50 +1,48 @@
-# Environment files with sensitive data
-.env
-.env.local
-.env.*.local
-**/.env
-**/.env.local
-
-# Allow example/template env files
-!.env.example
-!.env.production
-!**/.env.example
-
-# Python
+# === Python / Backend ===
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
-
-# Virtual Environment
-venv/
-ENV/
-env/
-.venv
-
-# Node
-node_modules/
+*.egg-info/
 dist/
-dist-ssr/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+ENV/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# === Node / Frontend ===
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
 
-# Logs
-*.log
+# === Environment ===
+.env
+.env.local
+.env.*.local
+
+# === Logs ===
 logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
-# OS
+# === IDE / Editor ===
+.vscode/
+.kiro/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# === OS ===
 .DS_Store
 Thumbs.db
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.kiro
+desktop.ini

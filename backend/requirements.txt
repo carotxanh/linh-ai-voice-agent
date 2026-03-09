@@ -1,18 +1,4 @@
-# FastAPI and server
 fastapi
 uvicorn[standard]
-websockets
-
-# Environment and configuration
+httpx
 python-dotenv
-pydantic
-pydantic-settings
-
-# ElevenLabs SDK
-elevenlabs
-
-# LLM provider
-google-genai
-
-# Utilities
-python-multipart

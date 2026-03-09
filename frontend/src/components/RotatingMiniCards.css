@@ -1,0 +1,75 @@
+.rotating-mini-cards {
+  position: relative;
+  min-height: 80px;
+  margin-top: 2rem;
+}
+
+.rotating-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  background: rgba(10, 10, 12, 0.6);
+  border: 2px solid rgba(255, 107, 53, 0.3);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.5s ease;
+  pointer-events: none;
+}
+
+.rotating-card.active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.rotating-card-orange {
+  border-color: rgba(255, 107, 53, 0.4);
+  box-shadow: 0 4px 20px rgba(255, 107, 53, 0.15);
+}
+
+.rotating-card-yellow {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);
+}
+
+.rotating-card-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.rotating-card-yellow .rotating-card-icon {
+  /* No special styling needed */
+}
+
+.rotating-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rotating-card-label {
+  font-size: 0.75rem;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.rotating-card-title {
+  font-size: 0.95rem;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.3;
+}

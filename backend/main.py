@@ -1,90 +1,64 @@
-"""
-FastAPI Backend for Voice Agent
-Handles WebSocket connections, STT, LLM, and TTS
-"""
-import asyncio
-import logging
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import os
+
+import httpx
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from core.config import get_settings
-from core.websocket_handler import WebSocketHandler
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+load_dotenv()
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Voice Agent API",
-    description="Real-time voice conversation with AI",
-    version="1.0.0"
-)
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+AGENT_ID = os.getenv("AGENT_ID")
 
-# Get settings
-settings = get_settings()
+app = FastAPI(title="LINH AI Backend", version="1.0.0")
 
-# Configure CORS
+# CORS — cho phép frontend Vite dev server (port 5173) gọi API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 @app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {
-        "status": "ok",
-        "message": "Voice Agent Backend is running",
-        "version": "1.0.0"
-    }
+async def health_check():
+    return {"status": "ok", "service": "LINH AI Backend"}
 
-@app.get("/health")
-async def health():
-    """Detailed health check"""
-    return {
-        "status": "healthy",
-        "services": {
-            "websocket": "ready",
-            "stt": "configured",
-            "llm": "configured",
-            "tts": "configured"
-        }
-    }
 
-@app.websocket("/ws/audio-stream")
-async def websocket_endpoint(websocket: WebSocket):
+@app.get("/api/signed-url")
+async def get_signed_url():
     """
-    WebSocket endpoint for real-time audio streaming
-    Handles bidirectional communication between frontend and backend
+    Lấy signed WebSocket URL từ ElevenLabs API.
+    Frontend sẽ dùng URL này để kết nối trực tiếp tới ElevenLabs agent
+    mà không cần expose API key.
     """
-    handler = WebSocketHandler(websocket)
-    
-    try:
-        await handler.connect()
-        logger.info(f"Client connected: {websocket.client}")
-        
-        # Start handling messages
-        await handler.handle_messages()
-        
-    except WebSocketDisconnect:
-        logger.info(f"Client disconnected: {websocket.client}")
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}", exc_info=True)
-    finally:
-        await handler.disconnect()
+    if not ELEVENLABS_API_KEY or not AGENT_ID:
+        raise HTTPException(
+            status_code=500,
+            detail="ELEVENLABS_API_KEY hoặc AGENT_ID chưa được cấu hình trong .env",
+        )
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    url = f"https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id={AGENT_ID}"
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(
+                url,
+                headers={"xi-api-key": ELEVENLABS_API_KEY},
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Không thể kết nối tới ElevenLabs API: {str(e)}",
+            )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"ElevenLabs API lỗi: {response.text}",
+        )
+
+    data = response.json()
+    return {"signed_url": data.get("signed_url")}
