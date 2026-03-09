@@ -8,10 +8,7 @@
 
 .animated-word {
   display: inline-block;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ff6b35;
   font-weight: 800;
   white-space: nowrap;
   animation: fadeIn 0.25s ease-out, sparkle 1s ease-in-out 0.25s infinite;

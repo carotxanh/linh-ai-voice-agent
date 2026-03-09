@@ -1,3 +1,4 @@
+import RippleText from '../components/RippleText'
 import { testimonials } from '../data/constants'
 
 export default function TestimonialsSection() {
@@ -5,7 +6,9 @@ export default function TestimonialsSection() {
     <section className="section alt-section">
       <div className="section-heading center">
         <p className="eyebrow">Khách hàng nói gì</p>
-        <h2>Đừng tin em nói, hãy nghe khách hàng em nói</h2>
+        <RippleText>
+          <h2>Đừng tin em nói, hãy nghe khách hàng em nói</h2>
+        </RippleText>
       </div>
 
       <div className="testimonial-grid">

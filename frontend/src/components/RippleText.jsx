@@ -4,19 +4,19 @@ import './RippleText.css'
 export default function RippleText({ children, className = '' }) {
   const [ripples, setRipples] = useState([])
   const containerRef = useRef(null)
+  const [isHovering, setIsHovering] = useState(false)
 
   const createRipple = (e) => {
-    const container = containerRef.current
-    if (!container) return
+    if (!isHovering) return
 
-    const rect = container.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    // Use viewport coordinates
+    const x = e.clientX
+    const y = e.clientY
 
     const newRipple = {
       x,
       y,
-      id: Date.now(),
+      id: Date.now() + Math.random(),
     }
 
     setRipples((prev) => [...prev, newRipple])
@@ -28,22 +28,30 @@ export default function RippleText({ children, className = '' }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className={`ripple-text-container ${className}`}
-      onMouseMove={createRipple}
-    >
-      {children}
-      {ripples.map((ripple) => (
-        <span
-          key={ripple.id}
-          className="ripple"
-          style={{
-            left: ripple.x,
-            top: ripple.y,
-          }}
-        />
-      ))}
-    </div>
+    <>
+      <div
+        ref={containerRef}
+        className={`ripple-text-container ${className}`}
+        onMouseMove={createRipple}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        {children}
+      </div>
+      
+      {/* Render ripples in a fixed portal */}
+      <div className="ripple-portal">
+        {ripples.map((ripple) => (
+          <span
+            key={ripple.id}
+            className="ripple ripple-fullscreen"
+            style={{
+              left: ripple.x,
+              top: ripple.y,
+            }}
+          />
+        ))}
+      </div>
+    </>
   )
 }
