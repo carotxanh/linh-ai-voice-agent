@@ -581,7 +581,6 @@ blockquote,
 .voice-ring:active {
   transform: scale(0.97);
 }
-}
 
 /* — Connecting state: fast yellow pulse */
 .voice-ring.connecting {
