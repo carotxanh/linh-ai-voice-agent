@@ -7,7 +7,7 @@ export default function Header({ onLoginClick }) {
         </div>
         <div>
           <p className="brand-title">LINH AI</p>
-          <p className="brand-sub">AI Voice Agent for EXE101</p>
+          <p className="brand-sub">AI Voice Agent cho doanh nghiệp</p>
         </div>
       </div>
 

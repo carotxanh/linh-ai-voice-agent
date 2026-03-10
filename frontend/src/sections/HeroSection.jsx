@@ -4,16 +4,16 @@ import { IconSpark } from '../components/Icons'
 import VoiceAgent from '../components/VoiceAgent'
 import RotatingMiniCards from '../components/RotatingMiniCards'
 
-export default function HeroSection({ 
-  conversation, 
-  voiceConnecting, 
-  onVoiceClick, 
-  onLoginClick 
+export default function HeroSection({
+  conversation,
+  voiceConnecting,
+  onVoiceClick,
+  onLoginClick
 }) {
   return (
     <section className="hero section" id="hero" style={{ position: 'relative' }}>
       <HeroRippleEffect />
-      
+
       <div className="hero-badge">
         <span className="icon-wrap small"><IconSpark /></span>
         AI Voice Agent cho doanh nghiệp Việt
@@ -26,11 +26,11 @@ export default function HeroSection({
             <br />
             không bỏ lỡ <AnimatedText /> 24/7
           </h1>
-          <p></p>
+          <p>Tự động hóa tổng đài chăm sóc khách hàng, tư vấn và xử lý đơn hàng bằng giọng nói tự nhiên như người thật. Tối ưu 80% chi phí vận hành.</p>
 
           <div className="hero-actions">
             <button className="btn btn-primary" onClick={onLoginClick}>
-              Thử em ngay
+              Trải nghiệm sản phẩm ngay
             </button>
             <a className="btn btn-secondary" href="#tinh-nang">
               Khám phá tính năng

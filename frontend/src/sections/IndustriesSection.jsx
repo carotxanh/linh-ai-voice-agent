@@ -6,10 +6,10 @@ export default function IndustriesSection() {
     <section className="section alt-section" id="nganh-nghe">
       <div className="section-heading center">
         <p className="eyebrow">Ứng dụng</p>
-        <h2>LINH phục vụ đa ngành nghề</h2>
+        <h2>LINH phục vụ đa dạng ngành nghề</h2>
         <p>
-          LINH có thể triển khai cho nhiều mô hình doanh nghiệp với luồng tư vấn,
-          chăm sóc khách hàng, xác nhận đơn, đặt lịch và sàng lọc nhu cầu tự động.
+          Với khả năng học hỏi linh hoạt, LINH AI dễ dàng tùy chỉnh để đáp ứng ngôn ngữ và đặc thù riêng
+          của mọi lĩnh vực kinh doanh.
         </p>
       </div>
 

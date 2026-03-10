@@ -47,35 +47,35 @@ export const testimonials = [
 
 export const features = [
   {
-    title: '24/7 không bỏ lỡ khách hàng',
-    desc: 'Tự động tiếp nhận cuộc gọi đến, phản hồi nhanh, hỗ trợ mọi khung giờ mà không phụ thuộc ca trực.',
+    title: 'Sẵn sàng 24/7 - Trải nghiệm khách hàng xuyên suốt',
+    desc: 'Tiếp nhận hàng ngàn cuộc gọi cùng lúc, không phụ thuộc vào giờ hành chính, giúp nâng cao tỷ lệ chuyển đổi.',
   },
   {
-    title: 'Tối ưu chi phí vận hành',
-    desc: 'Giảm tải cho telesales và chăm sóc khách hàng bằng các luồng xử lý lặp lại, đúng với pain point trong bài EXE.',
+    title: 'Tối ưu đột phá chi phí vận hành',
+    desc: 'Giảm thiểu áp lực tuyển dụng, đào tạo và duy trì đội ngũ nhân sự Telesale/CSKH cơ bản.',
   },
   {
-    title: 'Tích hợp quy trình nội bộ',
-    desc: 'Có thể gắn với CRM, ticket, bảng giá, quy trình xác nhận đơn hoặc lịch hẹn để tư vấn nhất quán.',
+    title: 'Tích hợp liền mạch với hệ thống của bạn',
+    desc: 'Dễ dàng kết nối với các phần mềm CRM, ERP và quy trình nội bộ sẵn có của doanh nghiệp thông qua API.',
   },
   {
-    title: 'Báo cáo và handoff thông minh',
-    desc: 'Lưu transcript, tóm tắt nội dung và chuyển tiếp cho người thật khi phát sinh tình huống phức tạp.',
+    title: 'Phân luồng & Chuyển tiếp thông minh',
+    desc: 'AI tự xử lý các yêu cầu phổ biến và nhận diện tình huống phức tạp để chuyển máy ngay cho nhân viên tư vấn con người.',
   },
 ]
 
 export const steps = [
   {
-    title: 'Nạp kiến thức cho LINH',
-    desc: 'Tải tài liệu nghiệp vụ, bảng giá, kịch bản chăm sóc khách hàng và FAQ vào hệ thống.',
+    title: 'Nạp dữ liệu doanh nghiệp',
+    desc: 'Cung cấp tài liệu, thông tin sản phẩm/dịch vụ để LINH học hỏi và nắm bắt kiến thức chuyên môn.',
   },
   {
-    title: 'Thiết lập luồng hội thoại',
-    desc: 'Cấu hình kịch bản xác nhận đơn, tư vấn, chuyển tiếp nhân sự và xử lý ngoài giờ.',
+    title: 'Thiết lập kịch bản hội thoại',
+    desc: 'Xây dựng luồng giao tiếp chuẩn hóa, hướng dẫn AI cách phản hồi trong từng tình huống cụ thể.',
   },
   {
-    title: 'Kết nối hotline doanh nghiệp',
-    desc: 'Gắn với số hotline hiện có để chạy thử, theo dõi hiệu suất và tối ưu dần theo từng use case.',
+    title: 'Kết nối hệ thống & Kích hoạt',
+    desc: 'Tích hợp vào tổng đài, số Hotline của doanh nghiệp và bắt đầu nhận cuộc gọi ngay lập tức.',
   },
 ]
 

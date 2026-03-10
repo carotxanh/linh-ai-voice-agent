@@ -7,7 +7,7 @@ export default function TestimonialsSection() {
       <div className="section-heading center">
         <p className="eyebrow">Khách hàng nói gì</p>
         <RippleText>
-          <h2>Đừng tin em nói, hãy nghe khách hàng em nói</h2>
+          <h2>Hàng trăm doanh nghiệp đã tối ưu vận hành cùng LINH AI</h2>
         </RippleText>
       </div>
 

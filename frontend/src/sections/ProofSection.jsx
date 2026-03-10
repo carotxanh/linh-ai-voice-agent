@@ -5,15 +5,14 @@ export default function ProofSection() {
     <section className="section" id="minh-chung">
       <div className="proof-card glass-card">
         <div className="proof-copy">
-          <p className="eyebrow">Minh chứng dự án</p>
+          <p className="eyebrow">Giải thưởng & Ghi nhận</p>
           <RippleText>
-            <h2>Giải nhì VNPT AI Hackathon - AI Voice Agent</h2>
+            <h2>Giải nhì VNPT AI Hackathon 2025 - AI Voice Agent</h2>
           </RippleText>
 
-          <ul className="proof-points">
-            <li>Tên AI assistant: LINH</li>
-            <li>Á Quân 2026</li>
-          </ul>
+          <p className="proof-description">
+            Tự hào đạt Giải nhì VNPT AI Hackathon 2025 với đề tài AI Voice Agent. Đây là minh chứng rõ nét cho năng lực công nghệ lõi và tính ứng dụng thực tiễn cao của LINH AI trong việc giải quyết bài toán vận hành của doanh nghiệp.
+          </p>
         </div>
 
         <div className="proof-visual">

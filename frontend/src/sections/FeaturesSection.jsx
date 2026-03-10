@@ -10,11 +10,11 @@ export default function FeaturesSection() {
       <div className="section-heading center">
         <p className="eyebrow">Lợi ích cốt lõi</p>
         <RippleText>
-          <h2>Thiết kế cho đúng pain point của dự án EXE</h2>
+          <h2>Giải quyết triệt để bài toán vận hành tổng đài của bạn</h2>
         </RippleText>
         <p>
-          Tập trung vào bài toán bỏ lỡ khách hàng, quy trình rời rạc, nhân sự quá tải và nhu cầu hỗ trợ
-          ngoài giờ.
+          Lợi thế vượt trội khi ứng dụng LINH AI vào hệ thống chăm sóc khách hàng và vận hành tổng đài
+          doanh nghiệp.
         </p>
       </div>
 
