@@ -1,4 +1,4 @@
-export const BACKEND_URL = 'http://localhost:8000'
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export const stats = [
   { label: 'Cuộc gọi đồng thời', value: '12+' },

@@ -15,7 +15,7 @@ app = FastAPI(title="LINH AI Backend", version="1.0.0")
 # CORS — cho phép frontend Vite dev server (port 5173) gọi API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://linhvoice.io.vn", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
