@@ -69,6 +69,7 @@ function App() {
       <AnimatedBackground />
       <ClickEffect />
       <Header onLoginClick={() => setShowLogin(true)} />
+      <div className="navbar-spacer"></div>
 
       <main>
         <HeroSection
