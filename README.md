@@ -22,6 +22,12 @@ linh-project/
 
 ### 1. Backend
 
+Tạo môi trường
+```bash
+conda createe -n linh-project python=3.10
+conda activate linh-project
+```
+
 ```bash
 cd backend
 pip install -r requirements.txt
