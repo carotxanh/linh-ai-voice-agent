@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './AnimatedText.css'
+
+const words = ['khách hàng', 'cuộc gọi']
 
 export default function AnimatedText() {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const words = ['khách hàng', 'cuộc gọi']
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % words.length)
-    }, 1000) // Thay đổi mỗi 1 giây
+    }, 1000)
 
     return () => clearInterval(interval)
   }, [])

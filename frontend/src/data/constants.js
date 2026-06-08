@@ -7,7 +7,7 @@ export const stats = [
 
 /** Mục luân phiên trong thẻ feature hero (1 thẻ duy nhất, đổi nội dung) */
 export const heroRotatingFeatures = [
-  { text: 'Đang gọi thử 12 cuộc gọi với khách hàng', icon: 'call' },
+  { text: 'Đang phản hồi khách hàng tức thì', icon: 'call' },
   { text: 'Bảo mật dữ liệu', icon: 'shield' },
   { text: 'Tự tạo nhiều kịch bản gọi điện chuyên nghiệp', icon: 'script' },
   { text: 'Tăng doanh số cho doanh nghiệp', icon: 'chart' },

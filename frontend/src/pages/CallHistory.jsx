@@ -3,6 +3,11 @@ import DashboardLayout from '../components/DashboardLayout'
 import { mockCallHistory } from '../data/mockCallHistory'
 import './CallHistory.css'
 
+const waveformHeights = Array.from({ length: 80 }, (_, index) => {
+  const value = Math.sin(index * 1.7) * 0.5 + Math.sin(index * 0.43) * 0.5
+  return `${Math.round(34 + Math.abs(value) * 66)}%`
+})
+
 // Material icon helper
 function MIcon({ name, className = '', filled = false, size = 24 }) {
   return (
@@ -85,7 +90,6 @@ export default function CallHistory() {
               <div className="transcript-container">
                 {selectedCall.transcript.split('\n').map((line, index) => {
                   const isCustomer = line.startsWith('Khách:')
-                  const isAgent = line.startsWith('LINH:')
                   const text = line.replace(/^(Khách:|LINH:)\s*/, '')
 
                   if (!text.trim()) return null
@@ -342,11 +346,11 @@ export default function CallHistory() {
                   <div className="audio-player">
                     <div className="audio-waveform">
                       <div className="waveform-bars">
-                        {[...Array(80)].map((_, i) => (
+                        {waveformHeights.map((height, i) => (
                           <div
                             key={i}
                             className="waveform-bar"
-                            style={{ height: `${Math.random() * 100}%` }}
+                            style={{ height }}
                           ></div>
                         ))}
                       </div>

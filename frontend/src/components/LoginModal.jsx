@@ -55,7 +55,7 @@ export default function LoginModal({ show, onClose }) {
   }
 
   const handleRegister = () => {
-    alert('Tài khoản demo:\nEmail: nhaxevanminh@example.com\nMật khẩu: 123456')
+    alert('Tạo tài khoản mới:\nVui lòng nhập email công ty và mật khẩu, đội ngũ LINH AI sẽ kích hoạt tài khoản cho bạn.')
   }
 
   if (!show) return null
@@ -70,7 +70,7 @@ export default function LoginModal({ show, onClose }) {
             <img className="brand-logo" src="/linh-logo.png" alt="LINH logo" />
           </div>
           <h2>Đăng nhập vào LINH AI</h2>
-          <p>Trải nghiệm AI Voice Agent cho doanh nghiệp</p>
+          <p>Cổng đăng nhập và đăng ký tài khoản LINH AI</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">

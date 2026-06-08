@@ -1011,6 +1011,164 @@
   }
 }
 
+/* Final homepage-aligned overrides */
+.call-history-page .page-header-left h1 {
+  color: #ffffff;
+  font-size: clamp(2.1rem, 3.8vw, 3.8rem);
+  font-weight: 950;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.call-count,
+.search-box,
+.call-table-wrapper,
+.modal-container,
+.summary-box,
+.message-text,
+.empty-transcript,
+.customer-detail-header,
+.customer-stat-item,
+.customer-detail-section,
+.sidebar-customer-card {
+  border-color: rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(circle at 84% 8%, rgba(34, 211, 238, 0.12), transparent 32%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(3, 7, 18, 0.56));
+  box-shadow:
+    0 22px 64px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px);
+}
+
+.search-box:focus-within,
+.knowledge-search:focus-within,
+.setting-input:focus,
+.setting-select:focus {
+  border-color: rgba(34, 211, 238, 0.52);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+}
+
+.filter-tab,
+.modal-tab,
+.btn-download,
+.modal-close {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.filter-tab:hover,
+.modal-tab:hover,
+.btn-download:hover,
+.modal-close:hover,
+.filter-tab.active,
+.modal-tab.active {
+  border-color: rgba(34, 211, 238, 0.42);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(168, 85, 247, 0.12));
+  color: #ffffff;
+}
+
+.call-table thead,
+.modal-header,
+.modal-tabs,
+.modal-sidebar,
+.audio-player {
+  background: rgba(3, 7, 18, 0.68);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.call-table-row:hover {
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.call-table th,
+.cell-date,
+.cell-messages,
+.activity-time,
+.sidebar-section-title,
+.customer-detail-section h4,
+.customer-stat-label,
+.sidebar-label,
+.audio-time,
+.audio-speed,
+.audio-action {
+  color: #94a3b8;
+}
+
+.call-table td,
+.customer-name,
+.message-sender,
+.customer-detail-info h3,
+.empty-state h3,
+.section-title,
+.customer-stat-value,
+.sidebar-customer-name {
+  color: #e2e8f0;
+}
+
+.call-count,
+.avatar-icon,
+.agent-icon-small,
+.sidebar-value,
+.customer-stat-value.highlight,
+.audio-action:hover {
+  color: #67e8f9;
+}
+
+.customer-avatar,
+.transcript-message.agent .message-avatar,
+.sidebar-agent-avatar {
+  background: rgba(34, 211, 238, 0.12);
+  color: #67e8f9;
+}
+
+.transcript-message.customer .message-avatar,
+.customer-detail-avatar,
+.sidebar-customer-avatar {
+  background: rgba(168, 85, 247, 0.13);
+  color: #c4b5fd;
+}
+
+.status-success,
+.modal-status.status-success,
+.sidebar-badge.status-success {
+  background: rgba(34, 211, 238, 0.13);
+  color: #a5f3fc;
+}
+
+.status-warning,
+.modal-status.status-warning,
+.sidebar-badge.status-warning {
+  background: rgba(251, 113, 133, 0.13);
+  color: #fecdd3;
+}
+
+.status-error,
+.modal-status.status-error,
+.sidebar-badge.status-error {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+}
+
+.audio-waveform {
+  background: rgba(15, 23, 42, 0.86);
+}
+
+.waveform-bar,
+.play-button {
+  background: linear-gradient(180deg, #22d3ee 0%, #3b82f6 48%, #a855f7 100%);
+}
+
+.play-button:hover {
+  background: linear-gradient(180deg, #67e8f9, #a855f7);
+}
+
+.history-dot.success {
+  background: #22d3ee;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.42);
+}
+
 @media (max-width: 768px) {
   .call-history-page {
     padding: 1.25rem;
@@ -1074,4 +1232,193 @@
   .customer-detail-stats {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* Homepage-aligned dashboard skin */
+.call-history-page {
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  color: #f8fafc;
+}
+
+.call-history-page .page-header-left h1 {
+  color: #ffffff;
+  font-size: clamp(2.1rem, 3.8vw, 3.8rem);
+  font-weight: 950;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.call-count,
+.search-box,
+.call-table-wrapper,
+.modal-container,
+.summary-box,
+.message-text,
+.empty-transcript,
+.customer-detail-header,
+.customer-stat-item,
+.customer-detail-section,
+.sidebar-customer-card {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(circle at 84% 8%, rgba(34, 211, 238, 0.12), transparent 32%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(3, 7, 18, 0.56));
+  box-shadow:
+    0 22px 64px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px);
+}
+
+.call-count {
+  color: #a5f3fc;
+  font-weight: 850;
+}
+
+.search-box:focus-within {
+  border-color: rgba(34, 211, 238, 0.52);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+}
+
+.search-icon,
+.empty-icon-material,
+.meta-icon,
+.sidebar-title-icon {
+  color: #67e8f9;
+}
+
+.search-input,
+.call-table td,
+.activity-title,
+.customer-name,
+.message-sender,
+.customer-detail-info h3 {
+  color: #e2e8f0;
+}
+
+.search-input::placeholder,
+.cell-date,
+.cell-messages,
+.activity-time,
+.customer-detail-info p,
+.sidebar-label,
+.knowledge-card-time {
+  color: #94a3b8;
+}
+
+.filter-tab,
+.modal-tab,
+.btn-download,
+.modal-close {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.filter-tab:hover,
+.modal-tab:hover,
+.btn-download:hover,
+.modal-close:hover {
+  border-color: rgba(34, 211, 238, 0.36);
+  background: rgba(34, 211, 238, 0.08);
+  color: #a5f3fc;
+}
+
+.filter-tab.active,
+.modal-tab.active {
+  border-color: rgba(34, 211, 238, 0.48);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(168, 85, 247, 0.12));
+  color: #ffffff;
+}
+
+.call-table thead,
+.modal-header,
+.modal-tabs,
+.modal-sidebar,
+.audio-player {
+  background: rgba(3, 7, 18, 0.68);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.call-table th,
+.sidebar-section-title,
+.customer-detail-section h4,
+.customer-stat-label {
+  color: #94a3b8;
+}
+
+.call-table-row {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+.call-table-row:hover {
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.customer-avatar,
+.transcript-message.agent .message-avatar,
+.sidebar-agent-avatar {
+  background: rgba(34, 211, 238, 0.12);
+  color: #67e8f9;
+}
+
+.transcript-message.customer .message-avatar,
+.customer-detail-avatar,
+.sidebar-customer-avatar {
+  background: rgba(168, 85, 247, 0.13);
+  color: #c4b5fd;
+}
+
+.avatar-icon,
+.agent-icon-small,
+.performance-value,
+.customer-stat-value.highlight,
+.sidebar-badge,
+.sidebar-value {
+  color: #67e8f9;
+}
+
+.status-success,
+.modal-status.status-success,
+.sidebar-badge.status-success {
+  background: rgba(34, 211, 238, 0.13);
+  color: #a5f3fc;
+}
+
+.status-warning,
+.modal-status.status-warning,
+.sidebar-badge.status-warning {
+  background: rgba(251, 113, 133, 0.13);
+  color: #fecdd3;
+}
+
+.status-error,
+.modal-status.status-error,
+.sidebar-badge.status-error {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+}
+
+.audio-waveform {
+  background: rgba(15, 23, 42, 0.86);
+}
+
+.waveform-bar,
+.play-button {
+  background: linear-gradient(180deg, #22d3ee 0%, #3b82f6 48%, #a855f7 100%);
+}
+
+.play-button:hover {
+  background: linear-gradient(180deg, #67e8f9, #a855f7);
+}
+
+.history-dot.success {
+  background: #22d3ee;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.42);
+}
+
+.modal-main::-webkit-scrollbar-thumb,
+.tab-content-area::-webkit-scrollbar-thumb,
+.modal-sidebar::-webkit-scrollbar-thumb,
+.call-table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.28);
 }

@@ -4,7 +4,7 @@
   min-height: 100vh;
   width: 100%;
   background: transparent;
-  color: #e5e5e5;
+  color: #f8fafc;
   position: relative;
   overflow-x: hidden;
 }
@@ -29,9 +29,11 @@
 /* ============ SIDEBAR (floating) ============ */
 .dashboard-sidebar {
   width: 260px;
-  background: rgba(18, 18, 18, 0.95);
-  backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 107, 53, 0.08);
+  background:
+    radial-gradient(circle at 60% 0%, rgba(34, 211, 238, 0.12), transparent 34%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(3, 7, 18, 0.64));
+  backdrop-filter: blur(26px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
   padding: 1rem 0;
@@ -43,8 +45,10 @@
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
     width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.35s ease;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 107, 53, 0.06);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.42),
+    0 0 40px rgba(34, 211, 238, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   overflow: hidden;
   border-radius: 16px;
 }
@@ -76,14 +80,16 @@
 .sidebar-logo {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 10px;
   flex-shrink: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(255, 122, 26, 0.24));
 }
 
 .sidebar-brand-text {
   font-size: 1.25rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  font-weight: 950;
+  background: linear-gradient(110deg, #ffffff, #22d3ee 38%, #a855f7 78%, #ffffff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -91,9 +97,9 @@
 
 /* Collapse Button */
 .sidebar-collapse-btn {
-  background: rgba(255, 107, 53, 0.08);
-  border: 1px solid rgba(255, 107, 53, 0.12);
-  color: #a0a0a0;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
   cursor: pointer;
   padding: 0;
   width: 28px;
@@ -107,9 +113,9 @@
 }
 
 .sidebar-collapse-btn:hover {
-  background: rgba(255, 107, 53, 0.15);
-  border-color: #ff6b35;
-  color: #ff6b35;
+  background: rgba(34, 211, 238, 0.14);
+  border-color: rgba(34, 211, 238, 0.42);
+  color: #67e8f9;
 }
 
 /* When collapsed, center the toggle button */
@@ -142,7 +148,7 @@
   padding: 0.75rem 1rem;
   background: transparent;
   border: none;
-  color: #a0a0a0;
+  color: #cbd5e1;
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.2s;
@@ -159,13 +165,15 @@
 }
 
 .sidebar-nav-item:hover {
-  background: rgba(255, 107, 53, 0.1);
-  color: #ff6b35;
+  background: rgba(34, 211, 238, 0.1);
+  color: #a5f3fc;
 }
 
 .sidebar-nav-item.active {
-  background: rgba(255, 107, 53, 0.15);
-  color: #ff6b35;
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(168, 85, 247, 0.14));
+  color: #ffffff;
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.12);
 }
 
 .nav-item-icon {
@@ -181,7 +189,7 @@
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   margin-top: auto;
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -195,7 +203,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 52%, #a855f7 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -214,7 +222,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   margin: 0 0 0.125rem 0;
-  color: #e5e5e5;
+  color: #f8fafc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -222,7 +230,7 @@
 
 .sidebar-user-email {
   font-size: 0.75rem;
-  color: #707070;
+  color: #94a3b8;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -231,7 +239,7 @@
 
 .sidebar-logout-btn {
   background: transparent;
-  border: 1px solid #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   width: 32px;
   height: 32px;
   border-radius: 6px;
@@ -241,13 +249,13 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #a0a0a0;
+  color: #cbd5e1;
 }
 
 .sidebar-logout-btn:hover {
-  background: rgba(255, 107, 53, 0.1);
-  border-color: #ff6b35;
-  color: #ff6b35;
+  background: rgba(251, 113, 133, 0.12);
+  border-color: rgba(251, 113, 133, 0.42);
+  color: #fecdd3;
 }
 
 .collapsed-logout {
