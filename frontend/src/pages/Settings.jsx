@@ -1,299 +1,286 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
+import {
+  getVapiAssistants,
+  getVapiPhoneNumbers,
+  updateVapiAssistant,
+  updateVapiPhoneNumber,
+} from '../services/vapi'
 import './Settings.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
-    return (
-        <span
-            className={`material-symbols-rounded ${className}`}
-            style={{
-                fontSize: size,
-                fontVariationSettings: filled ? "'FILL' 1" : "'FILL' 0",
-            }}
-        >
-            {name}
-        </span>
-    )
+  return (
+    <span
+      className={`material-symbols-rounded ${className}`}
+      style={{
+        fontSize: size,
+        fontVariationSettings: filled ? "'FILL' 1" : "'FILL' 0",
+      }}
+    >
+      {name}
+    </span>
+  )
 }
 
 export default function Settings() {
-    const [activeSection, setActiveSection] = useState('general')
+  const [activeSection, setActiveSection] = useState('strategy')
+  const [assistants, setAssistants] = useState([])
+  const [phoneNumbers, setPhoneNumbers] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [saveMessage, setSaveMessage] = useState('')
 
-    const sections = [
-        { id: 'general', icon: 'settings', label: 'Tổng quát' },
-        { id: 'voice', icon: 'mic', label: 'Giọng nói AI' },
-        { id: 'notifications', icon: 'notifications', label: 'Thông báo' },
-        { id: 'security', icon: 'shield', label: 'Bảo mật' },
-        { id: 'language', icon: 'language', label: 'Ngôn ngữ' },
-    ]
+  const sections = [
+    { id: 'strategy', icon: 'account_tree', label: 'Cách thiết lập' },
+    { id: 'assistants', icon: 'smart_toy', label: 'Trợ lý AI' },
+    { id: 'phoneNumbers', icon: 'settings_phone', label: 'Hotline' },
+  ]
 
-    return (
-        <DashboardLayout>
-            <div className="settings-page">
-                <div className="settings-header">
-                    <h1>Cài đặt</h1>
-                    <p className="settings-subtitle">Tùy chỉnh hệ thống theo nhu cầu của bạn</p>
-                </div>
+  const loadSettingsData = async () => {
+    setIsLoading(true)
+    setLoadError('')
 
-                <div className="settings-layout">
-                    {/* Settings Navigation */}
-                    <nav className="settings-nav">
-                        {sections.map(section => (
-                            <button
-                                key={section.id}
-                                className={`settings-nav-item ${activeSection === section.id ? 'active' : ''}`}
-                                onClick={() => setActiveSection(section.id)}
-                            >
-                                <MIcon
-                                    name={section.icon}
-                                    size={22}
-                                    filled={activeSection === section.id}
-                                    className="settings-nav-icon"
-                                />
-                                <span>{section.label}</span>
-                            </button>
-                        ))}
-                    </nav>
+    try {
+      const [vapiAssistants, vapiPhoneNumbers] = await Promise.all([
+        getVapiAssistants(100),
+        getVapiPhoneNumbers(100),
+      ])
+      setAssistants(Array.isArray(vapiAssistants) ? vapiAssistants : [])
+      setPhoneNumbers(Array.isArray(vapiPhoneNumbers) ? vapiPhoneNumbers : [])
+    } catch (error) {
+      setAssistants([])
+      setPhoneNumbers([])
+      setLoadError(error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-                    {/* Settings Content */}
-                    <div className="settings-content">
-                        {activeSection === 'general' && (
-                            <div className="settings-section">
-                                <h2>Tổng quát</h2>
-                                <p className="settings-section-desc">Cấu hình chung cho hệ thống</p>
+  useEffect(() => {
+    loadSettingsData()
+  }, [])
 
-                                <div className="settings-group">
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Tên doanh nghiệp</h3>
-                                            <p>Tên hiển thị trong cuộc gọi và báo cáo</p>
-                                        </div>
-                                        <input type="text" className="setting-input" defaultValue="Nhà Xe Vạn Minh" />
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Email liên hệ</h3>
-                                            <p>Email nhận thông báo hệ thống</p>
-                                        </div>
-                                        <input type="email" className="setting-input" defaultValue="nhaxevanminh@gmail.com" />
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Số điện thoại</h3>
-                                            <p>Số điện thoại chính đăng ký</p>
-                                        </div>
-                                        <input type="tel" className="setting-input" defaultValue="1900 6767" />
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Múi giờ</h3>
-                                            <p>Múi giờ sử dụng cho lịch trình và báo cáo</p>
-                                        </div>
-                                        <select className="setting-select">
-                                            <option value="Asia/Ho_Chi_Minh">UTC+7 (Ho Chi Minh)</option>
-                                            <option value="Asia/Bangkok">UTC+7 (Bangkok)</option>
-                                        </select>
-                                    </div>
-                                </div>
+  const handleAssistantFieldChange = (assistantId, field, value) => {
+    setAssistants((currentAssistants) => currentAssistants.map((assistant) => (
+      assistant.id === assistantId ? { ...assistant, [field]: value } : assistant
+    )))
+  }
 
-                                <div className="settings-actions">
-                                    <button className="btn-save">
-                                        <MIcon name="save" size={18} /> Lưu thay đổi
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+  const handleSaveAssistant = async (assistant) => {
+    setIsSaving(true)
+    setSaveMessage('')
 
-                        {activeSection === 'voice' && (
-                            <div className="settings-section">
-                                <h2>Giọng nói AI</h2>
-                                <p className="settings-section-desc">Tùy chỉnh giọng nói và hành vi của AI Agent</p>
+    try {
+      const updatedAssistant = await updateVapiAssistant(assistant.id, {
+        name: assistant.name,
+        firstMessage: assistant.firstMessage,
+        endCallMessage: assistant.endCallMessage,
+      })
+      setAssistants((currentAssistants) => currentAssistants.map((item) => (
+        item.id === assistant.id ? updatedAssistant : item
+      )))
+      setSaveMessage('Đã cập nhật trợ lý AI.')
+    } catch (error) {
+      setSaveMessage(`Không thể cập nhật trợ lý AI: ${error.message}`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
-                                <div className="settings-group">
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Tên Agent</h3>
-                                            <p>Tên mà AI sẽ tự giới thiệu</p>
-                                        </div>
-                                        <input type="text" className="setting-input" defaultValue="LINH" />
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Giọng nói</h3>
-                                            <p>Chọn giọng nói cho AI Agent</p>
-                                        </div>
-                                        <select className="setting-select">
-                                            <option>Nữ - Miền Bắc</option>
-                                            <option>Nữ - Miền Nam</option>
-                                            <option>Nam - Miền Bắc</option>
-                                            <option>Nam - Miền Nam</option>
-                                        </select>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Tốc độ nói</h3>
-                                            <p>Điều chỉnh tốc độ nói của AI</p>
-                                        </div>
-                                        <div className="setting-slider-container">
-                                            <input type="range" className="setting-slider" min="0.5" max="2" step="0.1" defaultValue="1" />
-                                            <span className="slider-value">1.0x</span>
-                                        </div>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Tự động chuyển tiếp</h3>
-                                            <p>Tự động chuyển tiếp cho nhân viên khi AI không xử lý được</p>
-                                        </div>
-                                        <label className="setting-toggle">
-                                            <input type="checkbox" defaultChecked />
-                                            <span className="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                </div>
+  const handlePhoneAssistantChange = async (phoneNumberId, assistantId) => {
+    setIsSaving(true)
+    setSaveMessage('')
 
-                                <div className="settings-actions">
-                                    <button className="btn-save">
-                                        <MIcon name="save" size={18} /> Lưu thay đổi
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+    try {
+      const updatedPhoneNumber = await updateVapiPhoneNumber(phoneNumberId, {
+        assistantId: assistantId || null,
+      })
+      setPhoneNumbers((currentPhoneNumbers) => currentPhoneNumbers.map((item) => (
+        item.id === phoneNumberId ? updatedPhoneNumber : item
+      )))
+      setSaveMessage('Đã cập nhật hotline.')
+    } catch (error) {
+      setSaveMessage(`Không thể cập nhật hotline: ${error.message}`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
-                        {activeSection === 'notifications' && (
-                            <div className="settings-section">
-                                <h2>Thông báo</h2>
-                                <p className="settings-section-desc">Quản lý cách bạn nhận thông báo</p>
+  return (
+    <DashboardLayout>
+      <div className="settings-page">
+        <div className="settings-header">
+          <h1>Thiết lập LinhVoice</h1>
+          <p className="settings-subtitle">Cấu hình trợ lý AI, hotline và cách tổ chức dữ liệu cho doanh nghiệp.</p>
+        </div>
 
-                                <div className="settings-group">
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Thông báo qua email</h3>
-                                            <p>Nhận báo cáo và thông báo qua email</p>
-                                        </div>
-                                        <label className="setting-toggle">
-                                            <input type="checkbox" defaultChecked />
-                                            <span className="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Cuộc gọi nhỡ</h3>
-                                            <p>Thông báo khi có cuộc gọi nhỡ</p>
-                                        </div>
-                                        <label className="setting-toggle">
-                                            <input type="checkbox" defaultChecked />
-                                            <span className="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Báo cáo hàng ngày</h3>
-                                            <p>Gửi báo cáo tổng hợp cuối ngày</p>
-                                        </div>
-                                        <label className="setting-toggle">
-                                            <input type="checkbox" />
-                                            <span className="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Cảnh báo hệ thống</h3>
-                                            <p>Thông báo khi có sự cố hoặc lỗi</p>
-                                        </div>
-                                        <label className="setting-toggle">
-                                            <input type="checkbox" defaultChecked />
-                                            <span className="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                </div>
+        {loadError && (
+          <div className="api-alert">
+            <MIcon name="info" size={18} />
+            Không thể tải cấu hình hiện tại: {loadError}.
+          </div>
+        )}
 
-                                <div className="settings-actions">
-                                    <button className="btn-save">
-                                        <MIcon name="save" size={18} /> Lưu thay đổi
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+        {saveMessage && (
+          <div className={saveMessage.startsWith('Không') ? 'api-alert' : 'api-success'}>
+            <MIcon name={saveMessage.startsWith('Không') ? 'warning' : 'check_circle'} size={18} />
+            {saveMessage}
+          </div>
+        )}
 
-                        {activeSection === 'security' && (
-                            <div className="settings-section">
-                                <h2>Bảo mật</h2>
-                                <p className="settings-section-desc">Quản lý bảo mật tài khoản</p>
+        <div className="settings-layout">
+          <nav className="settings-nav">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                className={`settings-nav-item ${activeSection === section.id ? 'active' : ''}`}
+                onClick={() => setActiveSection(section.id)}
+              >
+                <MIcon
+                  name={section.icon}
+                  size={22}
+                  filled={activeSection === section.id}
+                  className="settings-nav-icon"
+                />
+                <span>{section.label}</span>
+              </button>
+            ))}
+          </nav>
 
-                                <div className="settings-group">
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Đổi mật khẩu</h3>
-                                            <p>Cập nhật mật khẩu đăng nhập</p>
-                                        </div>
-                                        <button className="btn-outline">Đổi mật khẩu</button>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Xác thực 2 lớp</h3>
-                                            <p>Bảo vệ tài khoản với xác thực 2 lớp</p>
-                                        </div>
-                                        <label className="setting-toggle">
-                                            <input type="checkbox" />
-                                            <span className="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>API Key</h3>
-                                            <p>Quản lý API key cho tích hợp bên thứ 3</p>
-                                        </div>
-                                        <button className="btn-outline">Quản lý key</button>
-                                    </div>
-                                </div>
+          <div className="settings-content">
+            {activeSection === 'strategy' && (
+              <div className="settings-section">
+                <h2>Cách tổ chức trợ lý AI</h2>
+                <p className="settings-section-desc">Thiết lập theo nghiệp vụ để chủ doanh nghiệp dễ quản lý, tránh tạo quá nhiều trợ lý không cần thiết.</p>
 
-                                <div className="settings-actions">
-                                    <button className="btn-save">
-                                        <MIcon name="save" size={18} /> Lưu thay đổi
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeSection === 'language' && (
-                            <div className="settings-section">
-                                <h2>Ngôn ngữ</h2>
-                                <p className="settings-section-desc">Cài đặt ngôn ngữ giao diện và AI</p>
-
-                                <div className="settings-group">
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Ngôn ngữ giao diện</h3>
-                                            <p>Ngôn ngữ hiển thị trên dashboard</p>
-                                        </div>
-                                        <select className="setting-select">
-                                            <option>Tiếng Việt</option>
-                                            <option>English</option>
-                                        </select>
-                                    </div>
-                                    <div className="setting-item">
-                                        <div className="setting-info">
-                                            <h3>Ngôn ngữ AI</h3>
-                                            <p>Ngôn ngữ AI sử dụng trong cuộc gọi</p>
-                                        </div>
-                                        <select className="setting-select">
-                                            <option>Tiếng Việt</option>
-                                            <option>English</option>
-                                            <option>Tiếng Việt + English</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="settings-actions">
-                                    <button className="btn-save">
-                                        <MIcon name="save" size={18} /> Lưu thay đổi
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                <div className="settings-group">
+                  <div className="setting-item">
+                    <div className="setting-info">
+                      <h3>Tạo trợ lý theo vai trò kinh doanh</h3>
+                      <p>Nên có trợ lý riêng cho Sale, CSKH, Đặt lịch, Thu hồi công nợ hoặc từng chi nhánh nếu kịch bản và dữ liệu khác nhau.</p>
                     </div>
+                    <span className="data-source-badge vapi">Khuyến nghị</span>
+                  </div>
+                  <div className="setting-item">
+                    <div className="setting-info">
+                      <h3>Không tạo trợ lý theo từng nhân viên</h3>
+                      <p>Nhân viên nên dùng tài khoản riêng để vận hành cùng một trợ lý. Chỉ tách trợ lý khi kiến thức, giọng nói, hotline hoặc quy trình thật sự khác.</p>
+                    </div>
+                    <span className="data-source-badge">Dễ quản lý</span>
+                  </div>
+                  <div className="setting-item">
+                    <div className="setting-info">
+                      <h3>Tài khoản dành cho người vận hành</h3>
+                      <p>Chủ doanh nghiệp, quản lý, trưởng sale và trưởng CSKH nên có tài khoản riêng để phân quyền và theo dõi trách nhiệm.</p>
+                    </div>
+                    <span className="data-source-badge">Phân quyền</span>
+                  </div>
+                  <div className="setting-item">
+                    <div className="setting-info">
+                      <h3>Tách dữ liệu theo chủ đề</h3>
+                      <p>Bảng giá, chính sách, FAQ và danh mục sản phẩm nên là các tài liệu riêng để dễ cập nhật và kiểm tra khi có lỗi.</p>
+                    </div>
+                    <span className="data-source-badge">Kho dữ liệu</span>
+                  </div>
                 </div>
-            </div>
-        </DashboardLayout>
-    )
+
+                <div className="settings-actions">
+                  <button className="btn-save" onClick={loadSettingsData} disabled={isLoading}>
+                    <MIcon name={isLoading ? 'progress_activity' : 'sync'} size={18} />
+                    {isLoading ? 'Đang cập nhật' : 'Cập nhật cấu hình'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'assistants' && (
+              <div className="settings-section">
+                <h2>Trợ lý AI</h2>
+                <p className="settings-section-desc">Đặt tên trợ lý và lời chào đầu cuộc gọi sao cho phù hợp với thương hiệu doanh nghiệp.</p>
+
+                <div className="settings-group">
+                  {assistants.map((assistant) => (
+                    <div className="setting-item" key={assistant.id}>
+                      <div className="setting-info">
+                        <input
+                          type="text"
+                          className="setting-input setting-inline-input"
+                          value={assistant.name || ''}
+                          onChange={(event) => handleAssistantFieldChange(assistant.id, 'name', event.target.value)}
+                        />
+                        <p>{assistant.id}</p>
+                        <textarea
+                          className="setting-textarea"
+                          value={assistant.firstMessage || ''}
+                          onChange={(event) => handleAssistantFieldChange(assistant.id, 'firstMessage', event.target.value)}
+                          placeholder="Lời chào đầu cuộc gọi..."
+                        />
+                      </div>
+                      <div className="setting-stack">
+                        <span>Mô hình hội thoại: {assistant.modelName || '-'}</span>
+                        <span>Giọng nói: {assistant.voiceProvider || '-'}</span>
+                        <span>Ngôn ngữ: {assistant.transcriberLanguage || '-'}</span>
+                        <button className="btn-outline" onClick={() => handleSaveAssistant(assistant)} disabled={isSaving}>
+                          Lưu trợ lý
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {assistants.length === 0 && (
+                    <div className="setting-item">
+                      <div className="setting-info">
+                        <h3>Chưa có trợ lý AI</h3>
+                        <p>Hãy tạo trợ lý AI để bắt đầu nhận và xử lý cuộc gọi.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'phoneNumbers' && (
+              <div className="settings-section">
+                <h2>Hotline</h2>
+                <p className="settings-section-desc">Gán mỗi số hotline cho trợ lý AI phù hợp để cuộc gọi được xử lý đúng nghiệp vụ.</p>
+
+                <div className="settings-group">
+                  {phoneNumbers.map((phoneNumber) => (
+                    <div className="setting-item" key={phoneNumber.id}>
+                      <div className="setting-info">
+                        <h3>{phoneNumber.number || phoneNumber.name}</h3>
+                        <p>{phoneNumber.id}</p>
+                      </div>
+                      <div className="setting-stack">
+                        <span>Kênh gọi: {phoneNumber.provider || '-'}</span>
+                        <select
+                          className="setting-select"
+                          value={phoneNumber.assistantId || ''}
+                          onChange={(event) => handlePhoneAssistantChange(phoneNumber.id, event.target.value)}
+                          disabled={isSaving}
+                        >
+                          <option value="">Chưa gán trợ lý AI</option>
+                          {assistants.map((assistant) => (
+                            <option key={assistant.id} value={assistant.id}>{assistant.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                  {phoneNumbers.length === 0 && (
+                    <div className="setting-item">
+                      <div className="setting-info">
+                        <h3>Chưa có hotline</h3>
+                        <p>Kết nối hotline để LinhVoice có thể nhận hoặc thực hiện cuộc gọi.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  )
 }

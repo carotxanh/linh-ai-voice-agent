@@ -8,8 +8,8 @@
 ```
 linh-project/
 ├── backend/          # FastAPI server
-│   ├── .env          # ELEVENLABS_API_KEY + AGENT_ID
-│   ├── main.py       # GET /api/signed-url
+│   ├── .env          # ELEVENLABS_API_KEY + AGENT_ID + VAPI_API_KEY
+│   ├── main.py       # ElevenLabs signed URL + Vapi API proxy
 │   └── requirements.txt
 └── frontend/         # React + Vite
     ├── src/
@@ -24,8 +24,8 @@ linh-project/
 
 Tạo môi trường
 ```bash
-conda createe -n linh-project python=3.10
-conda activate linh-project
+conda create -n linh-voice python=3.11
+conda activate linh-voice
 ```
 
 ```bash
@@ -35,8 +35,9 @@ pip install -r requirements.txt
 
 Tạo file `.env`:
 ```env
-ELEVENLABS_API_KEY=your_api_key_here
-AGENT_ID=your_agent_id_here
+VAPI_API_KEY=your_vapi_api_key_here
+# Optional, default: https://api.vapi.ai
+VAPI_API_BASE_URL=https://api.vapi.ai
 ```
 
 Chạy server:
@@ -50,6 +51,11 @@ uvicorn main:app --reload --port 8000
 cd frontend
 npm install
 npm run dev
+```
+
+Nếu backend không chạy ở `http://localhost:8000`, tạo `frontend/.env`:
+```env
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 Mở trình duyệt tại `http://localhost:5173`.
@@ -67,10 +73,11 @@ Mở trình duyệt tại `http://localhost:5173`.
 |----------|-------------------------------------|
 | Frontend | React 19, Vite, @elevenlabs/react   |
 | Backend  | FastAPI, httpx, python-dotenv       |
-| AI Agent | ElevenLabs Conversational AI        |
+| AI Agent | ElevenLabs Conversational AI, Vapi  |
 
 ## Yêu cầu
 
 - Python 3.10+
 - Node.js 18+
 - Tài khoản [ElevenLabs](https://elevenlabs.io/) với Agent đã tạo
+- Vapi API key trong [Vapi Dashboard](https://dashboard.vapi.ai/)

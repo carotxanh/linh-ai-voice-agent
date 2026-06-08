@@ -34,9 +34,9 @@ export default function DashboardLayout({ children }) {
 
   const navItems = [
     { path: '/portal', icon: 'dashboard', label: 'Tổng quan' },
-    { path: '/call-history', icon: 'call_log', label: 'Lịch sử cuộc gọi' },
-    { path: '/knowledge', icon: 'menu_book', label: 'Kho tri thức' },
-    { path: '/settings', icon: 'settings', label: 'Cài đặt' },
+    { path: '/call-history', icon: 'call_log', label: 'Cuộc gọi' },
+    { path: '/knowledge', icon: 'folder_data', label: 'Kho dữ liệu' },
+    { path: '/settings', icon: 'settings', label: 'Thiết lập' },
   ]
 
   return (

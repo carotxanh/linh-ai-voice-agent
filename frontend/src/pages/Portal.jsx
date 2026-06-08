@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import RippleText from '../components/RippleText'
+import { getVapiDashboard } from '../services/vapi'
 import './Portal.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
@@ -17,15 +19,105 @@ function MIcon({ name, className = '', filled = false, size = 24 }) {
   )
 }
 
+const emptyDashboard = {
+  stats: {
+    totalCalls: 0,
+    completedCalls: 0,
+    activeCalls: 0,
+    transferredCalls: 0,
+    missedCalls: 0,
+    averageDuration: '0:00',
+    successRate: 0,
+    totalCost: 0,
+    assistantCount: 0,
+    phoneNumberCount: 0,
+    fileCount: 0,
+    processedFileCount: 0,
+  },
+  recentCalls: [],
+  assistants: [],
+  phoneNumbers: [],
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function formatCost(value) {
+  return `$${Number(value || 0).toFixed(4)}`
+}
+
+function statusLabel(status) {
+  if (status === 'completed') return 'Hoàn tất'
+  if (status === 'active') return 'Đang xử lý'
+  if (status === 'missed') return 'Nhỡ'
+  if (status === 'transferred') return 'Chuyển tiếp'
+  return status || 'Không rõ'
+}
+
 export default function Portal() {
   const navigate = useNavigate()
+  const [dashboard, setDashboard] = useState(emptyDashboard)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [dataSource, setDataSource] = useState('idle')
 
-  const stats = [
-    { label: 'Tổng cuộc gọi hôm nay', value: '24', icon: 'call', change: '+12% so với hôm qua', positive: true },
-    { label: 'Đang xử lý', value: '3', icon: 'schedule', change: 'Đang hoạt động' },
-    { label: 'Hoàn thành', value: '21', icon: 'check_circle', change: '87.5% tỷ lệ thành công', positive: true },
-    { label: 'Tỷ lệ hài lòng', value: '94%', icon: 'star', change: '+2% so với tuần trước', positive: true },
-  ]
+  const loadDashboard = async () => {
+    setIsLoading(true)
+    setLoadError('')
+
+    try {
+      const data = await getVapiDashboard(50)
+      setDashboard(data)
+      setDataSource('vapi')
+    } catch (error) {
+      setDashboard(emptyDashboard)
+      setDataSource('error')
+      setLoadError(error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadDashboard()
+  }, [])
+
+  const stats = useMemo(() => [
+    {
+      label: 'Tổng cuộc gọi',
+      value: dashboard.stats.totalCalls,
+      icon: 'call',
+      change: `${dashboard.stats.completedCalls} hoàn tất, ${dashboard.stats.activeCalls} đang xử lý`,
+      positive: true,
+    },
+    {
+      label: 'Thời lượng TB',
+      value: dashboard.stats.averageDuration,
+      icon: 'timer',
+      change: `${dashboard.stats.successRate}% hoàn tất`,
+      positive: true,
+    },
+    {
+      label: 'Chi phí cuộc gọi',
+      value: formatCost(dashboard.stats.totalCost),
+      icon: 'payments',
+      change: 'Từ các cuộc gọi đã đồng bộ',
+    },
+    {
+      label: 'Cấu hình đang dùng',
+      value: dashboard.stats.assistantCount,
+      icon: 'hub',
+      change: `${dashboard.stats.phoneNumberCount} hotline, ${dashboard.stats.fileCount} tài liệu`,
+    },
+  ], [dashboard])
 
   return (
     <DashboardLayout>
@@ -33,16 +125,26 @@ export default function Portal() {
         <div className="portal-header">
           <div className="portal-header-left">
             <RippleText>
-              <h1>Tổng quan</h1>
+              <h1>LinhVoice</h1>
             </RippleText>
-            <p className="portal-subtitle">Quản lý hệ thống AI Voice Agent</p>
+            <p className="portal-subtitle">Tổng quan vận hành cuộc gọi, trợ lý AI, hotline và kho dữ liệu doanh nghiệp.</p>
           </div>
           <div className="portal-header-actions">
-            <button className="btn-secondary" onClick={() => navigate('/')}>
-              Về trang chủ
+            <span className={`portal-api-note ${dataSource === 'vapi' ? 'live' : ''}`}>
+              {dataSource === 'vapi' ? 'Đã kết nối' : 'Chưa kết nối'}
+            </span>
+            <button className="btn-secondary" onClick={loadDashboard} disabled={isLoading}>
+              {isLoading ? 'Đang cập nhật' : 'Cập nhật'}
             </button>
           </div>
         </div>
+
+        {loadError && (
+          <div className="api-alert">
+            <MIcon name="info" size={18} />
+            Không thể tải dữ liệu tổng quan: {loadError}.
+          </div>
+        )}
 
         <div className="stats-grid">
           {stats.map((stat) => (
@@ -63,95 +165,108 @@ export default function Portal() {
           <div className="content-card">
             <div className="card-header">
               <RippleText>
-                <h3>Hoạt động gần đây</h3>
+                <h3>Cuộc gọi gần đây</h3>
               </RippleText>
-              <button className="btn-text">Xem tất cả</button>
+              <button className="btn-text" onClick={() => navigate('/call-history')}>Xem tất cả</button>
             </div>
             <div className="activity-list">
-              <div className="activity-item">
-                <div className="activity-icon success">
-                  <MIcon name="call" size={18} />
+              {dashboard.recentCalls.length > 0 ? dashboard.recentCalls.map((call) => (
+                <div className="activity-item" key={call.id}>
+                  <div className={`activity-icon ${call.status === 'completed' ? 'success' : 'warning'}`}>
+                    <MIcon name={call.status === 'completed' ? 'call' : 'warning'} size={18} />
+                  </div>
+                  <div className="activity-content">
+                    <p className="activity-title">{call.assistantName || 'Trợ lý AI'} gọi {call.phoneNumber}</p>
+                    <p className="activity-time">{formatDateTime(call.timestamp)} · {call.endedReason || statusLabel(call.status)}</p>
+                  </div>
+                  <span className={`activity-badge ${call.status === 'completed' ? 'success' : 'warning'}`}>
+                    {formatCost(call.cost)}
+                  </span>
                 </div>
-                <div className="activity-content">
-                  <p className="activity-title">Cuộc gọi từ 0901234567</p>
-                  <p className="activity-time">5 phút trước</p>
-                </div>
-                <span className="activity-badge success">Hoàn thành</span>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon success">
-                  <MIcon name="check_circle" size={18} />
-                </div>
-                <div className="activity-content">
-                  <p className="activity-title">Đặt vé thành công - Nguyễn Văn A</p>
-                  <p className="activity-time">15 phút trước</p>
-                </div>
-                <span className="activity-badge success">Thành công</span>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon warning">
-                  <MIcon name="warning" size={18} />
-                </div>
-                <div className="activity-content">
-                  <p className="activity-title">Chuyển tiếp nhân viên - Khiếu nại</p>
-                  <p className="activity-time">30 phút trước</p>
-                </div>
-                <span className="activity-badge warning">Chuyển tiếp</span>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon info">
-                  <MIcon name="bar_chart" size={18} />
-                </div>
-                <div className="activity-content">
-                  <p className="activity-title">Báo cáo ngày đã được tạo</p>
-                  <p className="activity-time">1 giờ trước</p>
-                </div>
-                <span className="activity-badge info">Hoàn tất</span>
-              </div>
+              )) : (
+                <p className="portal-empty-note">Chưa có cuộc gọi nào được ghi nhận.</p>
+              )}
             </div>
           </div>
 
           <div className="content-card">
             <div className="card-header">
               <RippleText>
-                <h3>Hiệu suất hệ thống</h3>
+                <h3>Trợ lý AI</h3>
               </RippleText>
+              <button className="btn-text" onClick={() => navigate('/settings')}>Thiết lập</button>
+            </div>
+            <div className="performance-list">
+              {dashboard.assistants.slice(0, 4).map((assistant) => (
+                <div className="performance-item" key={assistant.id}>
+                  <div className="performance-label">
+                    <span>{assistant.name}</span>
+                    <span className="performance-value">{assistant.modelName || assistant.modelProvider || '-'}</span>
+                  </div>
+                  <div className="stat-change">
+                    Giọng nói: {assistant.voiceProvider || '-'} · Nhận diện: {assistant.transcriberLanguage || '-'}
+                  </div>
+                </div>
+              ))}
+              {dashboard.assistants.length === 0 && <p className="portal-empty-note">Chưa có trợ lý AI nào.</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="content-grid compact">
+          <div className="content-card">
+            <div className="card-header">
+              <RippleText>
+                <h3>Hotline</h3>
+              </RippleText>
+            </div>
+            <div className="activity-list">
+              {dashboard.phoneNumbers.slice(0, 4).map((phoneNumber) => (
+                <div className="activity-item" key={phoneNumber.id}>
+                  <div className="activity-icon info">
+                    <MIcon name="settings_phone" size={18} />
+                  </div>
+                  <div className="activity-content">
+                    <p className="activity-title">{phoneNumber.number || phoneNumber.name}</p>
+                    <p className="activity-time">{phoneNumber.assistantName || phoneNumber.assistantId || 'Chưa gán trợ lý AI'}</p>
+                  </div>
+                </div>
+              ))}
+              {dashboard.phoneNumbers.length === 0 && <p className="portal-empty-note">Chưa có hotline nào được kết nối.</p>}
+            </div>
+          </div>
+
+          <div className="content-card">
+            <div className="card-header">
+              <RippleText>
+                <h3>Xử lý dữ liệu</h3>
+              </RippleText>
+              <button className="btn-text" onClick={() => navigate('/knowledge')}>Mở kho dữ liệu</button>
             </div>
             <div className="performance-list">
               <div className="performance-item">
                 <div className="performance-label">
-                  <span>Thời gian phản hồi TB</span>
-                  <span className="performance-value">1.2s</span>
+                  <span>Tài liệu đã xử lý</span>
+                  <span className="performance-value">{dashboard.stats.processedFileCount}/{dashboard.stats.fileCount}</span>
                 </div>
                 <div className="performance-bar">
-                  <div className="performance-fill" style={{ width: '95%' }}></div>
+                  <div
+                    className="performance-fill"
+                    style={{
+                      width: dashboard.stats.fileCount
+                        ? `${Math.round((dashboard.stats.processedFileCount / dashboard.stats.fileCount) * 100)}%`
+                        : '0%',
+                    }}
+                  ></div>
                 </div>
               </div>
               <div className="performance-item">
                 <div className="performance-label">
-                  <span>Độ chính xác STT</span>
-                  <span className="performance-value">98.5%</span>
+                  <span>Cuộc gọi cần xem lại</span>
+                  <span className="performance-value">{dashboard.stats.transferredCalls + dashboard.stats.missedCalls}</span>
                 </div>
-                <div className="performance-bar">
-                  <div className="performance-fill" style={{ width: '98.5%' }}></div>
-                </div>
-              </div>
-              <div className="performance-item">
-                <div className="performance-label">
-                  <span>Tỷ lệ xử lý tự động</span>
-                  <span className="performance-value">87%</span>
-                </div>
-                <div className="performance-bar">
-                  <div className="performance-fill" style={{ width: '87%' }}></div>
-                </div>
-              </div>
-              <div className="performance-item">
-                <div className="performance-label">
-                  <span>Uptime hệ thống</span>
-                  <span className="performance-value">99.9%</span>
-                </div>
-                <div className="performance-bar">
-                  <div className="performance-fill" style={{ width: '99.9%' }}></div>
+                <div className="stat-change">
+                  {dashboard.stats.transferredCalls} chuyển tiếp, {dashboard.stats.missedCalls} nhỡ
                 </div>
               </div>
             </div>

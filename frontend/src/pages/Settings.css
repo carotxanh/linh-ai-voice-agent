@@ -130,6 +130,59 @@
     padding-right: 2rem;
 }
 
+.setting-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    color: #cbd5e1;
+    font-size: 0.84rem;
+    text-align: right;
+}
+
+.data-source-badge {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.62);
+    font-size: 0.78rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.data-source-badge.vapi {
+    border-color: rgba(34, 211, 238, 0.42);
+    color: #a5f3fc;
+    background: rgba(34, 211, 238, 0.12);
+}
+
+.api-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(251, 113, 133, 0.24);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    color: #fecdd3;
+    background: rgba(251, 113, 133, 0.1);
+    font-size: 0.9rem;
+}
+
+.api-success {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(34, 211, 238, 0.28);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    color: #a5f3fc;
+    background: rgba(34, 211, 238, 0.1);
+    font-size: 0.9rem;
+}
+
 .setting-info h3 {
     margin: 0 0 0.2rem 0;
     font-size: 0.9rem;
@@ -159,6 +212,31 @@
 .setting-input:focus {
     border-color: #ff6b35;
     box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.08);
+}
+
+.setting-inline-input {
+    width: min(420px, 100%);
+    margin-bottom: 0.45rem;
+    font-weight: 800;
+}
+
+.setting-textarea {
+    width: min(520px, 100%);
+    min-height: 92px;
+    resize: vertical;
+    border: 1px solid rgba(255, 107, 53, 0.08);
+    border-radius: 8px;
+    padding: 0.75rem 0.85rem;
+    background: rgba(10, 10, 10, 0.6);
+    color: #e5e5e5;
+    font: inherit;
+    font-size: 0.84rem;
+    outline: none;
+}
+
+.setting-textarea:focus {
+    border-color: rgba(34, 211, 238, 0.52);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
 }
 
 .setting-select {
@@ -286,6 +364,11 @@
     color: #ff6b35;
 }
 
+.btn-outline:disabled {
+    cursor: wait;
+    opacity: 0.68;
+}
+
 .settings-actions {
     display: flex;
     justify-content: flex-end;
@@ -309,6 +392,12 @@
 .btn-save:hover {
     box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
     transform: translateY(-1px);
+}
+
+.btn-save:disabled {
+    cursor: wait;
+    opacity: 0.68;
+    transform: none;
 }
 
 .btn-save-icon {
@@ -344,6 +433,11 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
+    }
+
+    .setting-stack {
+        align-items: flex-start;
+        text-align: left;
     }
 
     .setting-info {
@@ -424,14 +518,16 @@
 }
 
 .setting-input,
-.setting-select {
+.setting-select,
+.setting-textarea {
     border-color: rgba(255, 255, 255, 0.12);
     background: rgba(3, 7, 18, 0.58);
     color: #e2e8f0;
 }
 
 .setting-input:focus,
-.setting-select:focus {
+.setting-select:focus,
+.setting-textarea:focus {
     border-color: rgba(34, 211, 238, 0.52);
     box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
 }

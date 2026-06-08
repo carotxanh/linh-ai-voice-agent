@@ -18,6 +18,12 @@
   backdrop-filter: none;
 }
 
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .call-history-page .page-header-left {
   display: flex;
   align-items: baseline;
@@ -40,6 +46,72 @@
   padding: 0.3rem 0.75rem;
   border-radius: 20px;
   border: 1px solid rgba(255, 107, 53, 0.1);
+}
+
+.data-source-badge {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.62);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.data-source-badge.vapi {
+  border-color: rgba(34, 211, 238, 0.42);
+  color: #a5f3fc;
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.btn-refresh {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.045);
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  border-color: rgba(34, 211, 238, 0.42);
+  color: #ffffff;
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.btn-refresh:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.api-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(251, 113, 133, 0.24);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  color: #fecdd3;
+  background: rgba(251, 113, 133, 0.1);
+  font-size: 0.9rem;
+}
+
+.loading-spin {
+  animation: spin 1.1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Toolbar */
@@ -1421,4 +1493,23 @@
 .modal-sidebar::-webkit-scrollbar-thumb,
 .call-table-wrapper::-webkit-scrollbar-thumb {
   background: rgba(34, 211, 238, 0.28);
+}
+
+.status-info,
+.modal-status.status-info,
+.sidebar-badge.status-info {
+  background: rgba(59, 130, 246, 0.14);
+  color: #bfdbfe;
+}
+
+.status-muted,
+.modal-status.status-muted,
+.sidebar-badge.status-muted {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+}
+
+.btn-download:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }

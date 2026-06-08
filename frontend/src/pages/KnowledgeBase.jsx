@@ -1,202 +1,267 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
+import { getVapiFiles, uploadVapiFile } from '../services/vapi'
 import './KnowledgeBase.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
-    return (
-        <span
-            className={`material-symbols-rounded ${className}`}
-            style={{
-                fontSize: size,
-                fontVariationSettings: filled ? "'FILL' 1" : "'FILL' 0",
-            }}
-        >
-            {name}
-        </span>
-    )
+  return (
+    <span
+      className={`material-symbols-rounded ${className}`}
+      style={{
+        fontSize: size,
+        fontVariationSettings: filled ? "'FILL' 1" : "'FILL' 0",
+      }}
+    >
+      {name}
+    </span>
+  )
 }
 
-const mockKnowledgeItems = [
-    {
-        id: 1,
-        name: 'Thông tin tuyến xe',
-        type: 'folder',
-        items: 12,
-        updatedAt: '2 giờ trước',
-        description: 'Danh sách các tuyến xe, lịch trình và giá vé',
-    },
-    {
-        id: 2,
-        name: 'Chính sách đổi/trả vé',
-        type: 'document',
-        size: '2.4 MB',
-        updatedAt: '1 ngày trước',
-        description: 'Quy định về đổi trả vé, hoàn tiền và bồi thường',
-    },
-    {
-        id: 3,
-        name: 'FAQ khách hàng',
-        type: 'document',
-        size: '1.1 MB',
-        updatedAt: '3 ngày trước',
-        description: 'Các câu hỏi thường gặp và câu trả lời mẫu',
-    },
-    {
-        id: 4,
-        name: 'Hướng dẫn sử dụng app',
-        type: 'folder',
-        items: 8,
-        updatedAt: '5 ngày trước',
-        description: 'Tài liệu hướng dẫn sử dụng ứng dụng đặt vé',
-    },
-    {
-        id: 5,
-        name: 'Kịch bản xử lý khiếu nại',
-        type: 'document',
-        size: '3.2 MB',
-        updatedAt: '1 tuần trước',
-        description: 'Các kịch bản và quy trình xử lý khiếu nại của khách hàng',
-    },
-    {
-        id: 6,
-        name: 'Danh sách nhà xe đối tác',
-        type: 'document',
-        size: '890 KB',
-        updatedAt: '2 tuần trước',
-        description: 'Thông tin liên hệ và hợp đồng với các nhà xe đối tác',
-    },
-]
+function formatBytes(bytes) {
+  const value = Number(bytes || 0)
+  if (!value) return '0 KB'
+
+  const units = ['B', 'KB', 'MB', 'GB']
+  let size = value
+  let unitIndex = 0
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function statusClass(status) {
+  if (status === 'done') return 'status-success'
+  if (status === 'processing') return 'status-warning'
+  if (status === 'failed') return 'status-error'
+  return 'status-muted'
+}
+
+function statusLabel(status) {
+  if (status === 'done') return 'Đã xử lý'
+  if (status === 'processing') return 'Đang xử lý'
+  if (status === 'failed') return 'Lỗi'
+  return 'Không rõ'
+}
 
 export default function KnowledgeBase() {
-    const [searchQuery, setSearchQuery] = useState('')
-    const [selectedCategory, setSelectedCategory] = useState('all')
+  const [files, setFiles] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('all')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUploading, setIsUploading] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const [dataSource, setDataSource] = useState('idle')
 
-    const filteredItems = mockKnowledgeItems.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.description.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesCategory = selectedCategory === 'all' ||
-            (selectedCategory === 'folder' && item.type === 'folder') ||
-            (selectedCategory === 'document' && item.type === 'document')
-        return matchesSearch && matchesCategory
-    })
+  const loadFiles = async () => {
+    setIsLoading(true)
+    setLoadError('')
 
-    return (
-        <DashboardLayout>
-            <div className="knowledge-page">
-                <div className="knowledge-header">
-                    <div className="knowledge-header-left">
-                        <h1>Kho tri thức</h1>
-                        <p className="knowledge-subtitle">Quản lý tài liệu và dữ liệu huấn luyện cho AI Agent</p>
-                    </div>
-                    <div className="knowledge-header-actions">
-                        <button className="btn-upload">
-                            <MIcon name="upload" size={20} />
-                            Tải lên
-                        </button>
-                        <button className="btn-create">
-                            <MIcon name="add" size={20} />
-                            Tạo mới
-                        </button>
-                    </div>
+    try {
+      const vapiFiles = await getVapiFiles()
+      setFiles(Array.isArray(vapiFiles) ? vapiFiles : [])
+      setDataSource('vapi')
+    } catch (error) {
+      setFiles([])
+      setDataSource('error')
+      setLoadError(error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadFiles()
+  }, [])
+
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setIsUploading(true)
+    setUploadError('')
+
+    try {
+      const uploadedFile = await uploadVapiFile(file)
+      setFiles((currentFiles) => [uploadedFile, ...currentFiles])
+      setDataSource('vapi')
+    } catch (error) {
+      setUploadError(error.message)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const filteredFiles = useMemo(() => files.filter((file) => {
+    const query = searchQuery.toLowerCase()
+    const matchesStatus = selectedStatus === 'all' || file.status === selectedStatus
+    const searchable = [
+      file.id,
+      file.name,
+      file.originalName,
+      file.status,
+      file.purpose,
+      file.mimetype,
+    ].join(' ').toLowerCase()
+
+    return matchesStatus && searchable.includes(query)
+  }), [files, searchQuery, selectedStatus])
+
+  const totalBytes = files.reduce((sum, file) => sum + Number(file.bytes || 0), 0)
+  const processedFiles = files.filter((file) => file.status === 'done').length
+  const processingFiles = files.filter((file) => file.status === 'processing').length
+
+  return (
+    <DashboardLayout>
+      <div className="knowledge-page">
+        <div className="knowledge-header">
+          <div className="knowledge-header-left">
+            <h1>Kho dữ liệu</h1>
+            <p className="knowledge-subtitle">Tải lên tài liệu, bảng giá, chính sách và FAQ để trợ lý AI có dữ liệu trả lời khách hàng.</p>
+          </div>
+          <div className="knowledge-header-actions">
+            <span className={`data-source-badge ${dataSource}`}>
+              {dataSource === 'vapi' ? 'Đã kết nối' : 'Chưa kết nối'}
+            </span>
+            <label className={`btn-create upload-label ${isUploading ? 'disabled' : ''}`}>
+              <MIcon name={isUploading ? 'progress_activity' : 'upload'} size={20} />
+              {isUploading ? 'Đang tải lên' : 'Tải tài liệu'}
+              <input
+                type="file"
+                onChange={handleUpload}
+                disabled={isUploading}
+                accept=".pdf,.doc,.docx,.txt,.csv,.json,.mp3,.wav,.m4a"
+              />
+            </label>
+            <button className="btn-upload" onClick={loadFiles} disabled={isLoading}>
+              <MIcon name={isLoading ? 'progress_activity' : 'refresh'} size={20} />
+              {isLoading ? 'Đang tải' : 'Làm mới'}
+            </button>
+          </div>
+        </div>
+
+        {loadError && (
+          <div className="api-alert">
+            <MIcon name="info" size={18} />
+            Không thể tải kho dữ liệu: {loadError}.
+          </div>
+        )}
+
+        {uploadError && (
+          <div className="api-alert">
+            <MIcon name="warning" size={18} />
+            Không thể tải tài liệu lên: {uploadError}.
+          </div>
+        )}
+
+        <div className="knowledge-stats">
+          <div className="knowledge-stat-card">
+            <div className="knowledge-stat-number">{files.length}</div>
+            <div className="knowledge-stat-label">Tài liệu</div>
+          </div>
+          <div className="knowledge-stat-card">
+            <div className="knowledge-stat-number">{processedFiles}</div>
+            <div className="knowledge-stat-label">Đã xử lý</div>
+          </div>
+          <div className="knowledge-stat-card">
+            <div className="knowledge-stat-number">{processingFiles}</div>
+            <div className="knowledge-stat-label">Đang xử lý</div>
+          </div>
+          <div className="knowledge-stat-card">
+            <div className="knowledge-stat-number">{formatBytes(totalBytes)}</div>
+            <div className="knowledge-stat-label">Dung lượng</div>
+          </div>
+        </div>
+
+        <div className="knowledge-toolbar">
+          <div className="knowledge-search">
+            <MIcon name="search" size={20} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Tìm theo tên tài liệu, loại dữ liệu..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="search-input"
+            />
+          </div>
+          <div className="knowledge-filters">
+            {[
+              ['all', 'Tất cả'],
+              ['done', 'Đã xử lý'],
+              ['processing', 'Đang xử lý'],
+              ['failed', 'Lỗi'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                className={`knowledge-filter ${selectedStatus === value ? 'active' : ''}`}
+                onClick={() => setSelectedStatus(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="knowledge-grid">
+          {filteredFiles.map((file) => (
+            <div key={file.id} className="knowledge-card">
+              <div className="knowledge-card-icon document">
+                <MIcon name={file.mimetype?.startsWith('audio/') ? 'graphic_eq' : 'description'} size={28} filled />
+              </div>
+              <div className="knowledge-card-content">
+                <h3 className="knowledge-card-title">{file.name}</h3>
+                <p className="knowledge-card-desc">
+                  {file.purpose || 'tài liệu'} · {file.mimetype || 'không rõ định dạng'}
+                </p>
+                <div className="knowledge-card-meta">
+                  <span className={`call-table-status ${statusClass(file.status)}`}>{statusLabel(file.status)}</span>
+                  <span className="knowledge-card-info">{formatBytes(file.bytes)}</span>
+                  <span className="knowledge-card-time">{formatDate(file.updatedAt || file.createdAt)}</span>
                 </div>
-
-                {/* Stats */}
-                <div className="knowledge-stats">
-                    <div className="knowledge-stat-card">
-                        <div className="knowledge-stat-number">6</div>
-                        <div className="knowledge-stat-label">Tài liệu</div>
-                    </div>
-                    <div className="knowledge-stat-card">
-                        <div className="knowledge-stat-number">20</div>
-                        <div className="knowledge-stat-label">Tổng mục</div>
-                    </div>
-                    <div className="knowledge-stat-card">
-                        <div className="knowledge-stat-number">7.5 MB</div>
-                        <div className="knowledge-stat-label">Dung lượng</div>
-                    </div>
-                    <div className="knowledge-stat-card">
-                        <div className="knowledge-stat-number">98%</div>
-                        <div className="knowledge-stat-label">Độ phủ</div>
-                    </div>
+                <div className="knowledge-card-meta">
+                  <span className="knowledge-card-info">Nội dung đã đọc: {formatBytes(file.parsedTextBytes)}</span>
                 </div>
-
-                {/* Toolbar */}
-                <div className="knowledge-toolbar">
-                    <div className="knowledge-search">
-                        <MIcon name="search" size={20} className="search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Tìm kiếm tài liệu..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="search-input"
-                        />
-                    </div>
-                    <div className="knowledge-filters">
-                        <button
-                            className={`knowledge-filter ${selectedCategory === 'all' ? 'active' : ''}`}
-                            onClick={() => setSelectedCategory('all')}
-                        >
-                            Tất cả
-                        </button>
-                        <button
-                            className={`knowledge-filter ${selectedCategory === 'folder' ? 'active' : ''}`}
-                            onClick={() => setSelectedCategory('folder')}
-                        >
-                            Thư mục
-                        </button>
-                        <button
-                            className={`knowledge-filter ${selectedCategory === 'document' ? 'active' : ''}`}
-                            onClick={() => setSelectedCategory('document')}
-                        >
-                            Tài liệu
-                        </button>
-                    </div>
-                </div>
-
-                {/* Knowledge Grid */}
-                <div className="knowledge-grid">
-                    {filteredItems.map(item => (
-                        <div key={item.id} className="knowledge-card">
-                            <div className={`knowledge-card-icon ${item.type}`}>
-                                <MIcon
-                                    name={item.type === 'folder' ? 'folder' : 'description'}
-                                    size={28}
-                                    filled
-                                />
-                            </div>
-                            <div className="knowledge-card-content">
-                                <h3 className="knowledge-card-title">{item.name}</h3>
-                                <p className="knowledge-card-desc">{item.description}</p>
-                                <div className="knowledge-card-meta">
-                                    <span className="knowledge-card-info">
-                                        {item.type === 'folder' ? `${item.items} mục` : item.size}
-                                    </span>
-                                    <span className="knowledge-card-time">{item.updatedAt}</span>
-                                </div>
-                            </div>
-                            <div className="knowledge-card-actions">
-                                <button className="card-action-btn" title="Tải xuống">
-                                    <MIcon name="download" size={18} />
-                                </button>
-                                <button className="card-action-btn" title="Sao chép">
-                                    <MIcon name="content_copy" size={18} />
-                                </button>
-                                <button className="card-action-btn delete" title="Xóa">
-                                    <MIcon name="delete" size={18} />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Upload Drop Zone */}
-                <div className="knowledge-dropzone">
-                    <MIcon name="cloud_upload" size={48} className="dropzone-icon" />
-                    <h3>Kéo thả tài liệu vào đây</h3>
-                    <p>Hỗ trợ: PDF, DOCX, TXT, CSV, JSON (tối đa 50MB)</p>
-                </div>
+              </div>
+              <div className="knowledge-card-actions">
+                {file.url && (
+                  <a className="card-action-btn" title="Mở tài liệu" href={file.url} target="_blank" rel="noreferrer">
+                    <MIcon name="open_in_new" size={18} />
+                  </a>
+                )}
+                {file.parsedTextUrl && (
+                  <a className="card-action-btn" title="Mở nội dung đã đọc" href={file.parsedTextUrl} target="_blank" rel="noreferrer">
+                    <MIcon name="article" size={18} />
+                  </a>
+                )}
+              </div>
             </div>
-        </DashboardLayout>
-    )
+          ))}
+        </div>
+
+        {!isLoading && filteredFiles.length === 0 && (
+          <div className="knowledge-dropzone">
+            <MIcon name="cloud_upload" size={48} className="dropzone-icon" />
+            <h3>Chưa có tài liệu phù hợp</h3>
+            <p>{loadError ? 'Kiểm tra kết nối hệ thống rồi thử làm mới.' : 'Tải lên tài liệu kinh doanh để trợ lý AI có thể sử dụng khi trả lời khách hàng.'}</p>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  )
 }
