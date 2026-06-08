@@ -1,22 +1,22 @@
 import AnimatedText from '../components/AnimatedText'
 import HeroRippleEffect from '../components/HeroRippleEffect'
 import { IconSpark } from '../components/Icons'
-import VoiceAgent from '../components/VoiceAgent'
-import RotatingMiniCards from '../components/RotatingMiniCards'
 
-export default function HeroSection({
-  conversation,
-  voiceConnecting,
-  onVoiceClick,
-  onLoginClick
-}) {
+export default function HeroSection({ onLoginClick }) {
   return (
-    <section className="hero section" id="hero" style={{ position: 'relative' }}>
+    <section className="hero section hero-full" id="hero" style={{ position: 'relative' }}>
       <HeroRippleEffect />
+
+      <div className="hero-code-orbit" aria-hidden="true">
+        <span>const linh = voice.ai()</span>
+        <span>listen_24_7()</span>
+        <span>no_missed_customers</span>
+        <span>deploy.agent()</span>
+      </div>
 
       <div className="hero-badge">
         <span className="icon-wrap small"><IconSpark /></span>
-        AI Voice Agent cho doanh nghiệp Việt
+        #1 AI Voice Agent cho doanh nghiệp Việt
       </div>
 
       <div className="hero-content">
@@ -26,26 +26,19 @@ export default function HeroSection({
             <br />
             không bỏ lỡ <AnimatedText /> 24/7
           </h1>
-          <p>Tự động hóa tổng đài chăm sóc khách hàng, tư vấn và xử lý đơn hàng bằng giọng nói tự nhiên như người thật. Tối ưu 80% chi phí vận hành.</p>
+          <p>
+            Tự động hóa tổng đài chăm sóc khách hàng, tư vấn và xử lý đơn hàng bằng giọng nói tự nhiên như người thật.
+            Web hiện chỉ mở hai luồng chính: đăng nhập và đăng ký tài khoản.
+          </p>
 
           <div className="hero-actions">
             <button className="btn btn-primary" onClick={onLoginClick}>
-              Trải nghiệm sản phẩm ngay
+              Đăng nhập
             </button>
-            <a className="btn btn-secondary" href="#tinh-nang">
-              Khám phá tính năng
-            </a>
+            <button className="btn btn-secondary" onClick={onLoginClick}>
+              Đăng ký tài khoản
+            </button>
           </div>
-        </div>
-
-        <div className="hero-panel glass-card">
-          <RotatingMiniCards />
-
-          <VoiceAgent
-            conversation={conversation}
-            voiceConnecting={voiceConnecting}
-            onVoiceClick={onVoiceClick}
-          />
         </div>
       </div>
     </section>

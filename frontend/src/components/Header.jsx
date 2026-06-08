@@ -18,11 +18,14 @@ export default function Header({ onLoginClick }) {
         <a href="#minh-chung">Minh chứng</a>
       </nav>
 
-      <button className="btn btn-primary btn-sm" onClick={onLoginClick}>
-        Dùng thử ngay
-      </button>
+      <div className="nav-actions">
+        <button className="btn btn-secondary btn-sm" onClick={onLoginClick}>
+          Đăng ký
+        </button>
+        <button className="btn btn-primary btn-sm" onClick={onLoginClick}>
+          Đăng nhập
+        </button>
+      </div>
     </header>
   )
 }
-
-// PropTypes removed for simplicity

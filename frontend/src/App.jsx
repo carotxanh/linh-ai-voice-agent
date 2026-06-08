@@ -1,92 +1,101 @@
-import { useState } from 'react'
-import { useConversation } from '@elevenlabs/react'
-import AnimatedBackground from './components/AnimatedBackground'
-import ClickEffect from './components/ClickEffect'
-import Header from './components/Header'
-import Footer from './components/Footer'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Navbar from './components/Navbar'
+import VideoBackground from './components/VideoBackground'
 import LoginModal from './components/LoginModal'
-import HeroSection from './sections/HeroSection'
-import FeaturesSection from './sections/FeaturesSection'
-import TestimonialsSection from './sections/TestimonialsSection'
-import ProcessSection from './sections/ProcessSection'
-import IndustriesSection from './sections/IndustriesSection'
-import ProofSection from './sections/ProofSection'
-import { BACKEND_URL } from './data/constants'
+import { scenes } from './data/scenes'
+import CTAScene from './sections/CTAScene'
+import HeroScene from './sections/HeroScene'
+import HowItWorksScene from './sections/HowItWorksScene'
+import ProblemScene from './sections/ProblemScene'
+import SolutionScene from './sections/SolutionScene'
+import UseCasesScene from './sections/UseCasesScene'
 import './index.css'
 
+const sceneComponents = [HeroScene, ProblemScene, SolutionScene, UseCasesScene, HowItWorksScene, CTAScene]
+
 function App() {
+  const sceneRefs = useRef([])
+  const activeSceneRef = useRef(0)
+  const [activeScene, setActiveScene] = useState(0)
   const [showLogin, setShowLogin] = useState(false)
-  const [voiceConnecting, setVoiceConnecting] = useState(false)
 
-  const conversation = useConversation({
-    onConnect: () => {
-      console.log('ElevenLabs Agent connected')
-      setVoiceConnecting(false)
-    },
-    onDisconnect: () => {
-      console.log('ElevenLabs Agent disconnected')
-      setVoiceConnecting(false)
-    },
-    onError: (error) => {
-      console.error('ElevenLabs Agent error:', error)
-      setVoiceConnecting(false)
-    },
-    onMessage: (message) => {
-      console.log('Agent message:', message)
-    },
-  })
+  const openAuth = () => setShowLogin(true)
 
-  const handleVoiceClick = async () => {
-    if (voiceConnecting) return
+  const goToScene = useCallback((nextIndex) => {
+    if (nextIndex < 0 || nextIndex >= scenes.length) return
 
-    if (conversation.status === 'connected') {
-      await conversation.endSession()
-      return
-    }
+    sceneRefs.current[nextIndex]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }, [])
 
-    try {
-      setVoiceConnecting(true)
-      await navigator.mediaDevices.getUserMedia({ audio: true })
+  useEffect(() => {
+    activeSceneRef.current = activeScene
+  }, [activeScene])
 
-      const response = await fetch(`${BACKEND_URL}/api/signed-url`)
-      if (!response.ok) {
-        throw new Error('Không thể lấy signed URL từ server')
-      }
-      const data = await response.json()
+  useEffect(() => {
+    let frame = 0
 
-      await conversation.startSession({
-        signedUrl: data.signed_url,
+    const syncSceneToScroll = () => {
+      frame = 0
+      const viewportCenter = window.scrollY + window.innerHeight / 2
+      let nextScene = 0
+
+      sceneRefs.current.forEach((section, index) => {
+        if (!section) return
+        if (section.offsetTop <= viewportCenter) {
+          nextScene = index
+        }
       })
-    } catch (error) {
-      console.error('Lỗi kết nối voice agent:', error)
-      setVoiceConnecting(false)
-      alert('Không thể kết nối voice agent. Vui lòng thử lại.')
+
+      if (nextScene === activeSceneRef.current) return
+
+      activeSceneRef.current = nextScene
+      setActiveScene(nextScene)
     }
-  }
+
+    const handleScroll = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(syncSceneToScroll)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', handleScroll)
+    syncSceneToScroll()
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
 
   return (
-    <div className="page-shell">
-      <AnimatedBackground />
-      <ClickEffect />
-      <Header onLoginClick={() => setShowLogin(true)} />
-      <div className="navbar-spacer"></div>
+    <div
+      className="cinema-app"
+      style={{
+        '--scene-index': activeScene,
+        '--scene-direction': 1,
+      }}
+    >
+      <VideoBackground mood={scenes[activeScene].mood} sceneIndex={activeScene} />
 
-      <main>
-        <HeroSection
-          conversation={conversation}
-          voiceConnecting={voiceConnecting}
-          onVoiceClick={handleVoiceClick}
-          onLoginClick={() => setShowLogin(true)}
-        />
+      <Navbar activeScene={activeScene} onNavigate={goToScene} onCta={openAuth} />
 
-        <FeaturesSection />
-        <TestimonialsSection />
-        <ProcessSection />
-        <IndustriesSection />
-        <ProofSection />
+      <main className="scene-canvas">
+        {sceneComponents.map((SceneComponent, index) => (
+          <div
+            key={scenes[index].id}
+            ref={(node) => {
+              sceneRefs.current[index] = node
+            }}
+            className="scene-page"
+          >
+            <SceneComponent onCta={openAuth} />
+          </div>
+        ))}
       </main>
-
-      <Footer />
 
       <LoginModal show={showLogin} onClose={() => setShowLogin(false)} />
     </div>

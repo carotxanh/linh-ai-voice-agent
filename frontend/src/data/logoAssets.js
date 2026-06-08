@@ -1,0 +1,31 @@
+export const clientLogos = [
+  { name: 'VNPT', key: 'vnpt', logo: '/logos/logo/VNPT.jpg' },
+  { name: 'FPT', logo: '/logos/logo/download.png' },
+  { name: 'MISA', logo: '/logos/logo/MISA.jpg' },
+  { name: 'Viettel', logo: '/logos/logo/download.jpg' },
+  { name: 'Sapo', logo: '/logos/logo/sapo.png' },
+  { name: 'KiotViet', logo: '/logos/logo/KiotViet.jpg' },
+  { name: 'Haravan', logo: '/logos/logo/haravan.jpg' },
+  { name: 'Limo', logo: '/logos/logo/limo.jpg' },
+  { name: 'An Phát', logo: '/logos/logo/an-phat.jpg' },
+  { name: 'Tiki', logo: '/logos/logo/tiki.png' },
+  { name: 'GoBus', logo: '/logos/logo/gobus.jpg' },
+  { name: 'MedCare', logo: '/logos/logo/MedCare.jpg' },
+  { name: 'EduX', logo: '/logos/logo/edux.png' },
+  { name: 'HomePro', logo: '/logos/logo/HomePro.png' },
+  { name: 'Cafe24', logo: '/logos/logo/Cafe24.jpg' },
+  { name: 'TravelGo', logo: '/logos/logo/TravelGo.jpg' },
+  { name: 'AutoHub', logo: '/logos/logo/AutoHub.jpg' },
+  { name: 'Clinic+', logo: '/logos/logo/Clinic+.png' },
+  { name: 'BeautyX', logo: '/logos/logo/BeautyX.jpg' },
+  { name: 'LogiFast', logo: '/logos/logo/LogiFast.jpg' },
+]
+
+export const modelLogos = [
+  { name: 'Claude', logo: '/logos/logo-AI/Claude.png' },
+  { name: 'OpenAI', logo: '/logos/logo-AI/Chat%20gpt.png' },
+  { name: 'Gemini', logo: '/logos/logo-AI/genmini.png' },
+  { name: 'ElevenLabs', logo: '/logos/logo-AI/ElevenLabs.png' },
+  { name: 'Whisper', logo: '/logos/logo-AI/Whisper.png' },
+  { name: 'Deepgram', logo: '/logos/logo-AI/Deepgram.png' },
+]

@@ -1,9 +1,8 @@
-export default function Footer() {
+export default function Footer({ onLoginClick }) {
   const currentYear = new Date().getFullYear()
 
   return (
     <footer className="footer" id="footer">
-      {/* CTA Section */}
       <div className="footer-cta">
         <h3>Sẵn sàng nâng cấp trải nghiệm khách hàng?</h3>
         <p>
@@ -11,13 +10,12 @@ export default function Footer() {
           và phục vụ khách hàng 24/7.
         </p>
         <div className="footer-cta-actions">
-          <a href="#" className="btn btn-primary">Dùng thử miễn phí</a>
-          <a href="mailto:contact@linhai.vn" className="btn btn-secondary">Liên hệ tư vấn</a>
+          <button type="button" className="btn btn-primary" onClick={onLoginClick}>Đăng nhập</button>
+          <button type="button" className="btn btn-secondary" onClick={onLoginClick}>Đăng ký</button>
         </div>
       </div>
 
       <div className="footer-main">
-        {/* Brand Column */}
         <div className="footer-brand">
           <div className="footer-logo-wrap">
             <img className="footer-logo" src="/linh-logo.png" alt="LINH AI logo" />
@@ -32,7 +30,6 @@ export default function Footer() {
           </p>
         </div>
 
-        {/* Quick Links */}
         <div className="footer-col">
           <h4 className="footer-col-title">Sản phẩm</h4>
           <nav className="footer-nav">
@@ -43,7 +40,6 @@ export default function Footer() {
           </nav>
         </div>
 
-        {/* Contact Info */}
         <div className="footer-col">
           <h4 className="footer-col-title">Liên hệ</h4>
           <nav className="footer-nav">
@@ -54,7 +50,6 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Bar */}
       <div className="footer-bottom">
         <p className="footer-copyright">
           © {currentYear} LINH AI. All rights reserved.

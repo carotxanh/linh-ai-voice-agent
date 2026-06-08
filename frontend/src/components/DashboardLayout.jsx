@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { logout, getCurrentUser } from '../utils/auth'
-import AnimatedBackground from './AnimatedBackground'
+import VideoBackground from './VideoBackground'
 import './DashboardLayout.css'
 
 // Material icon helper
@@ -41,7 +41,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="dashboard-container">
-      <AnimatedBackground />
+      <VideoBackground />
 
       {/* Click-away overlay when sidebar is expanded */}
       <div
