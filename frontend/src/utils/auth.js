@@ -1,8 +1,8 @@
 // Mock authentication system
 const MOCK_USER = {
-  email: 'nhaxevanminh@example.com',
+  email: 'admin@linhvoice.ai',
   password: '123456',
-  name: 'Nhà Xe Vạn Minh',
+  name: 'Linh Voice Admin',
   role: 'admin',
 }
 
