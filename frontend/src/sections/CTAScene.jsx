@@ -4,13 +4,31 @@ import SceneWrapper from '../components/SceneWrapper'
 import { fadeUp } from '../data/animations'
 
 const plans = [
-  { name: 'Starter', price: '1.200.000đ', desc: 'Cho đội nhỏ cần tự động hóa cuộc gọi cơ bản.' },
-  { name: 'Growth', price: '5.500.000đ', desc: 'Cho doanh nghiệp có nhiều kịch bản và báo cáo.' },
-  { name: 'Enterprise', price: '10.000.000đ+', desc: 'Cho vận hành lớn, tích hợp riêng và SLA.' },
+  {
+    name: 'Gói Khởi Đầu',
+    badge: 'Đội nhỏ',
+    price: 'Tư vấn theo nhu cầu',
+    desc: 'Cho doanh nghiệp muốn tự động hóa cuộc gọi cơ bản và triển khai nhanh.',
+    features: ['1 kịch bản cốt lõi', 'Thiết lập dữ liệu ban đầu', 'Báo cáo kết quả cơ bản'],
+  },
+  {
+    name: 'Gói Phát Triển',
+    badge: 'Phổ biến',
+    price: 'Tối ưu theo quy mô',
+    desc: 'Phù hợp đội bán hàng, CSKH hoặc vận hành có nhiều luồng xử lý.',
+    features: ['Nhiều kịch bản gọi', 'Dashboard theo dõi chi tiết', 'Tối ưu lời thoại định kỳ'],
+  },
+  {
+    name: 'Gói Doanh Nghiệp',
+    badge: 'Quy mô lớn',
+    price: 'Thiết kế riêng',
+    desc: 'Dành cho hệ thống cần tích hợp riêng, phân quyền và cam kết vận hành.',
+    features: ['Tích hợp CRM/ERP', 'SLA và hỗ trợ ưu tiên', 'Bảo mật và phân quyền'],
+  },
 ]
 
 const faqs = [
-  'Em có hỗ trợ tiếng Việt tự nhiên không?',
+  'AI có hỗ trợ tiếng Việt tự nhiên không?',
   'Làm thế nào để nạp dữ liệu cho AI?',
   'Có chuyển cuộc gọi cho người thật được không?',
   'Báo cáo sau cuộc gọi gồm những gì?',
@@ -21,25 +39,36 @@ export default function CTAScene({ onCta }) {
     <SceneWrapper className="justify-center text-center">
       <div className="pricing-scene mx-auto w-full max-w-6xl">
         <Motion.p variants={fadeUp} className="scene-label">
-          Giá cả rõ ràng
+          Tư vấn gói giá
         </Motion.p>
         <Motion.h2 variants={fadeUp} className="cinema-title cta-title mx-auto max-w-5xl">
-          Giá của em rất <span className="gradient-text">thời đại</span>
+          Gói giá linh hoạt cho từng <span className="gradient-text">giai đoạn</span>
         </Motion.h2>
+        <Motion.p variants={fadeUp} className="cinema-subtitle mx-auto max-w-2xl">
+          Mỗi doanh nghiệp có cách vận hành riêng. Đội ngũ chúng tôi sẽ tư vấn phương án phù hợp với nhu cầu, ngân sách và mục tiêu triển khai của bạn.
+        </Motion.p>
 
         <div className="pricing-grid mt-7">
           {plans.map((plan, index) => (
             <Motion.div variants={fadeUp} key={plan.name} className={`price-card ${index === 1 ? 'featured' : ''}`}>
-              <h3>{plan.name}</h3>
-              <strong>{plan.price}</strong>
+              <div className="price-card-header">
+                <h3>{plan.name}</h3>
+                <span className="plan-badge">{plan.badge}</span>
+              </div>
+              <span className="price-contact">{plan.price}</span>
               <p>{plan.desc}</p>
-              <button type="button" onClick={onCta}>Đăng ký ngay</button>
+              <ul className="plan-features">
+                {plan.features.map((feature) => (
+                  <li key={feature}>{feature}</li>
+                ))}
+              </ul>
+              <button type="button" onClick={onCta}>Liên hệ ngay</button>
             </Motion.div>
           ))}
         </div>
 
         <Motion.h3 variants={fadeUp} className="section-mini-title compact">
-          Các thắc mắc về em
+          Câu hỏi thường gặp
         </Motion.h3>
         <Motion.div variants={fadeUp} className="faq-list">
           {faqs.map((faq) => (
@@ -53,7 +82,7 @@ export default function CTAScene({ onCta }) {
         <Motion.div variants={fadeUp} className="final-cta-band">
           <div>
             <span><IconShield /> Không cần tuyển thêm ca trực</span>
-            <h3>Em hứa sẽ trở thành nhân viên tổng đài số 1 của bạn</h3>
+            <h3>Trợ lý AI sẵn sàng trở thành tổng đài viên đáng tin cậy của bạn</h3>
           </div>
           <Motion.button className="neon-button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} onClick={onCta}>
             <IconCall />

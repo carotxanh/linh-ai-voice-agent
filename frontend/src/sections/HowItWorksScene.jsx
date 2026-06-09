@@ -41,7 +41,7 @@ export default function HowItWorksScene() {
     <SceneWrapper>
       <div className="model-scene mx-auto w-full max-w-6xl text-center">
         <Motion.h2 variants={fadeUp} className="cinema-title model-title mx-auto max-w-5xl">
-          Bộ não của em được tạo ra từ
+          Bộ não được tạo ra từ
           <br />
           <span className="gradient-text">AI Models tân tiến nhất thế giới</span>
         </Motion.h2>
@@ -55,7 +55,7 @@ export default function HowItWorksScene() {
             <ModelNode key={model.name} model={model} index={index} />
           ))}
           <div className="model-center">
-            <img src="/logos/logo-AI/LINH.png" alt="Linh AI" />
+            <img src="/linh-logo.svg" alt="Linh AI" />
           </div>
         </Motion.div>
 

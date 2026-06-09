@@ -106,9 +106,10 @@ const industries = [
   { name: 'Đặt khám', icon: IconHospital },
   { name: 'Tra cứu', icon: IconChart },
   { name: 'Hotline 24/7', icon: IconHeadset },
+  { name: 'Du lịch', icon: IconTicket },
+  { name: 'Khách sạn', icon: IconHome },
+  { name: 'Bảo hiểm', icon: IconShield },
 ]
-
-const centerSlot = 26
 
 export default function UseCasesScene() {
   return (
@@ -121,15 +122,10 @@ export default function UseCasesScene() {
         </Motion.h2>
 
         <Motion.div variants={fadeUp} className="industry-universe industry-mosaic mt-10">
+          <div className="industry-core">
+            <img src="/linh-logo.svg" alt="Linh AI" />
+          </div>
           {industries.map((industry, index) => {
-            if (index === centerSlot) {
-              return (
-                <div key="linh-core" className="industry-core">
-                  <img src="/linh-logo.png" alt="Linh AI" />
-                </div>
-              )
-            }
-
             const IndustryIcon = industry.icon
             return (
               <span key={`${industry.name}-${index}`} className={`industry-tile ${index % 9 === 0 ? 'highlight' : ''}`}>
