@@ -1,0 +1,36 @@
+services:
+  backend:
+    image: linhvoice-backend:latest
+    container_name: linh-voice-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    ports:
+      - target: 8000
+        published: 8000
+        protocol: tcp
+        host_ip: 127.0.0.1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: linhvoice-frontend:latest
+    container_name: linh-voice-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - target: 80
+        published: 8080
+        protocol: tcp
+        host_ip: 127.0.0.1
