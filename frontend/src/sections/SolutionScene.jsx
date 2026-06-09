@@ -4,38 +4,24 @@ import { fadeUp } from '../data/animations'
 
 const flowSteps = [
   {
-    eyebrow: 'Nạp Tri Thức',
-    title: 'Bắt đầu cho em ăn kiến thức',
+    eyebrow: 'Bước 1',
+    title: 'Nạp dữ liệu',
     type: 'knowledge',
-    note: 'Vừa đang học...',
+    note: 'Đang đọc thông tin...',
     callout: null,
   },
   {
-    eyebrow: 'Tự Học Nghiệp vụ',
-    title: 'Để em tự học nghiệp vụ',
-    type: 'training',
-    note: 'Sếp ơi! Em đang tạo các nghiệp vụ và các faqs',
-    callout: 'Phân tách kiến thức tạo các kịch bản nghiệp vụ',
-  },
-  {
-    eyebrow: 'Gọi Thử & Cải Tiến',
-    title: 'Thử gọi để xem em nói gì',
+    eyebrow: 'Bước 2',
+    title: 'Thử giọng và kịch bản',
     type: 'trial',
-    note: 'Đề xuất cải tiến phản hồi',
-    callout: 'Đang nghe máy',
+    note: 'Chỉnh câu trả lời cho tự nhiên hơn',
+    callout: 'Gọi thử',
   },
   {
-    eyebrow: 'Báo Cáo & Gợi Ý',
-    title: 'Em gửi báo cáo qua Zalo',
-    type: 'report',
-    note: 'Sau mỗi cuộc gọi, em luôn báo cáo cho sếp các thông tin và tóm tắt cuộc gọi',
-    callout: null,
-  },
-  {
-    eyebrow: 'Kết Nối Thực Tế',
-    title: 'Gắn em vào số tổng đài của sếp',
+    eyebrow: 'Bước 3',
+    title: 'Kết nối và nhận báo cáo',
     type: 'connect',
-    note: 'Sếp có thể chọn số di động hoặc số hotline tổng đài',
+    note: 'Có tóm tắt và trạng thái sau mỗi cuộc gọi',
     callout: null,
   },
 ]
@@ -57,31 +43,14 @@ function KnowledgeMock({ note }) {
           <span>Website</span>
           <span>Tri thức</span>
         </div>
-        <div className="mock-input">website-cua-sep.com</div>
+        <div className="mock-input">linh-ai.vn/kien-thuc</div>
         <div className="mock-tags">
-          <i>Nhà xe</i>
-          <i>Dịch vụ tư vấn</i>
-          <i>Nhà hàng</i>
+          <i>Sản phẩm</i>
+          <i>FAQ</i>
+          <i>Quy trình</i>
         </div>
         <div className="mock-loader">{note}</div>
       </div>
-    </div>
-  )
-}
-
-function TrainingMock({ note, callout }) {
-  return (
-    <div className="use-mock use-mock-training">
-      <div className="mock-card">
-        <strong>Tiếp nhận đặt xe</strong>
-        <p>Nếu khách hàng có nhu cầu đặt chuyến...</p>
-        <div>
-          <span>Kiến thức 859 từ</span>
-          <span>44 FAQs</span>
-        </div>
-      </div>
-      <div className="mock-callout top">{callout}</div>
-      <div className="mock-callout bottom">{note}</div>
     </div>
   )
 }
@@ -99,22 +68,8 @@ function TrialMock({ note, callout }) {
       </div>
       <div className="mock-feedback">
         <strong>{note}</strong>
-        <p>Bọn nên nói ngay các thông tin cần thiết để đặt bàn như: Bạn muốn đặt bàn cho mấy người và vào khoảng mấy giờ?</p>
+        <p>Ví dụ: hỏi lại giờ hẹn, xác nhận nhu cầu và dùng câu chào phù hợp với thương hiệu.</p>
       </div>
-    </div>
-  )
-}
-
-function ReportMock({ note }) {
-  return (
-    <div className="use-mock use-mock-report">
-      <div className="mock-message">
-        <strong>BOT AI-SUNNY RÔ NHẬN</strong>
-        <p>GỌI TỰ ĐỘNG - CUỘC TUẦN</p>
-        <p>SĐT khách hàng: 098604...</p>
-        <p>Hotline: 99999</p>
-      </div>
-      <div className="mock-callout report">{note}</div>
     </div>
   )
 }
@@ -123,9 +78,9 @@ function ConnectMock({ note }) {
   return (
     <div className="use-mock use-mock-connect">
       <div className="mock-form">
-        <strong>1 Lựa chọn loại đầu số</strong>
-        <label><span /> Số di động</label>
-        <label className="muted"><span /> Số SIP Trunk</label>
+        <strong>Kết quả cuộc gọi</strong>
+        <label><span /> Đã tư vấn xong</label>
+        <label className="muted"><span /> Cần người thật gọi lại</label>
       </div>
       <div className="mock-callout connect">{note}</div>
     </div>
@@ -134,9 +89,7 @@ function ConnectMock({ note }) {
 
 function StepVisual({ step }) {
   if (step.type === 'knowledge') return <KnowledgeMock note={step.note} />
-  if (step.type === 'training') return <TrainingMock note={step.note} callout={step.callout} />
   if (step.type === 'trial') return <TrialMock note={step.note} callout={step.callout} />
-  if (step.type === 'report') return <ReportMock note={step.note} />
   return <ConnectMock note={step.note} />
 }
 
@@ -145,14 +98,12 @@ export default function SolutionScene() {
     <SceneWrapper className="scene-solution use-flow-scene">
       <div className="use-flow-wrap mx-auto w-full text-center">
         <Motion.h2 variants={fadeUp} className="use-flow-title">
-          Làm thế nào để sử dụng em<span className="use-flow-question">?</span>
+          Luồng hoạt động đơn giản
         </Motion.h2>
 
-        <Motion.div variants={fadeUp} className="use-flow-board">
+        <Motion.div variants={fadeUp} className="use-flow-board simple-flow">
           <Arrow className="arrow-one" />
           <Arrow className="arrow-two" />
-          <Arrow className="arrow-three" />
-          <Arrow className="arrow-four" />
 
           {flowSteps.map((step, index) => (
             <article className={`use-flow-card step-${index + 1}`} key={step.title}>
