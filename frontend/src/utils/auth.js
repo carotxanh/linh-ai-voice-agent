@@ -1,9 +1,10 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+import { apiUrl } from '../config/api'
+
 const TOKEN_KEY = 'linhvoice_access_token'
 const USER_KEY = 'linhvoice_user'
 
 async function authFetch(path, payload) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -29,7 +30,7 @@ function persistSession(data) {
 
 export const login = async (email, password) => {
   try {
-    const data = await authFetch('/api/auth/login', { email, password })
+    const data = await authFetch('/auth/login', { email, password })
     persistSession(data)
     return { success: true, user: data.user }
   } catch (error) {
@@ -39,7 +40,7 @@ export const login = async (email, password) => {
 
 export const register = async ({ email, password, fullName }) => {
   try {
-    const data = await authFetch('/api/auth/register', {
+    const data = await authFetch('/auth/register', {
       email,
       password,
       full_name: fullName,

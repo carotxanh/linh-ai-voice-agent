@@ -1,6 +1,5 @@
 import { getAuthToken } from '../utils/auth'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+import { apiUrl } from '../config/api'
 
 async function apiFetch(path, options = {}) {
   const token = getAuthToken()
@@ -15,7 +14,7 @@ async function apiFetch(path, options = {}) {
       ...(options.headers || {}),
     }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...options,
     headers,
   })
@@ -29,59 +28,59 @@ async function apiFetch(path, options = {}) {
 }
 
 export function getVoiceDashboard(limit = 50) {
-  return apiFetch(`/api/voice/dashboard?limit=${limit}`)
+  return apiFetch(`/voice/dashboard?limit=${limit}`)
 }
 
 export function getAccountIntegration() {
-  return apiFetch('/api/account/integration')
+  return apiFetch('/account/integration')
 }
 
 export function updateAccountIntegration(payload) {
-  return apiFetch('/api/account/integration', {
+  return apiFetch('/account/integration', {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
 }
 
 export function getVoiceCalls(limit = 100) {
-  return apiFetch(`/api/voice/calls?limit=${limit}`)
+  return apiFetch(`/voice/calls?limit=${limit}`)
 }
 
 export function getVoiceCall(callId) {
-  return apiFetch(`/api/voice/calls/${callId}`)
+  return apiFetch(`/voice/calls/${callId}`)
 }
 
 export function getVoiceFiles() {
-  return apiFetch('/api/voice/files')
+  return apiFetch('/voice/files')
 }
 
 export function uploadVoiceFile(file) {
   const formData = new FormData()
   formData.append('file', file)
 
-  return apiFetch('/api/voice/files', {
+  return apiFetch('/voice/files', {
     method: 'POST',
     body: formData,
   })
 }
 
 export function getVoiceAssistants(limit = 100) {
-  return apiFetch(`/api/voice/assistants?limit=${limit}`)
+  return apiFetch(`/voice/assistants?limit=${limit}`)
 }
 
 export function getVoicePhoneNumbers(limit = 100) {
-  return apiFetch(`/api/voice/phone-numbers?limit=${limit}`)
+  return apiFetch(`/voice/phone-numbers?limit=${limit}`)
 }
 
 export function updateVoiceAssistant(assistantId, payload) {
-  return apiFetch(`/api/voice/assistants/${assistantId}`, {
+  return apiFetch(`/voice/assistants/${assistantId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
 }
 
 export function updateVoicePhoneNumber(phoneNumberId, payload) {
-  return apiFetch(`/api/voice/phone-numbers/${phoneNumberId}`, {
+  return apiFetch(`/voice/phone-numbers/${phoneNumberId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
