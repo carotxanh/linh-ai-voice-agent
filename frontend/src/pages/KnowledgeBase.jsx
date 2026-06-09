@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
-import { getVapiFiles, uploadVapiFile } from '../services/vapi'
+import { getVoiceFiles, uploadVoiceFile } from '../services/voice'
 import './KnowledgeBase.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
@@ -73,9 +73,9 @@ export default function KnowledgeBase() {
     setLoadError('')
 
     try {
-      const vapiFiles = await getVapiFiles()
-      setFiles(Array.isArray(vapiFiles) ? vapiFiles : [])
-      setDataSource('vapi')
+      const voiceFiles = await getVoiceFiles()
+      setFiles(Array.isArray(voiceFiles) ? voiceFiles : [])
+      setDataSource('live')
     } catch (error) {
       setFiles([])
       setDataSource('error')
@@ -98,9 +98,9 @@ export default function KnowledgeBase() {
     setUploadError('')
 
     try {
-      const uploadedFile = await uploadVapiFile(file)
+      const uploadedFile = await uploadVoiceFile(file)
       setFiles((currentFiles) => [uploadedFile, ...currentFiles])
-      setDataSource('vapi')
+      setDataSource('live')
     } catch (error) {
       setUploadError(error.message)
     } finally {
@@ -137,7 +137,7 @@ export default function KnowledgeBase() {
           </div>
           <div className="knowledge-header-actions">
             <span className={`data-source-badge ${dataSource}`}>
-              {dataSource === 'vapi' ? 'Đã kết nối' : 'Chưa kết nối'}
+              {dataSource === 'live' ? 'Đã kết nối' : 'Chưa kết nối'}
             </span>
             <label className={`btn-create upload-label ${isUploading ? 'disabled' : ''}`}>
               <MIcon name={isUploading ? 'progress_activity' : 'upload'} size={20} />

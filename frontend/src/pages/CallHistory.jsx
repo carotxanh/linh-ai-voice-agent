@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
-import { getVapiCalls } from '../services/vapi'
+import { getVoiceCalls } from '../services/voice'
 import './CallHistory.css'
 
 const waveformHeights = Array.from({ length: 80 }, (_, index) => {
@@ -82,9 +82,9 @@ export default function CallHistory() {
     setLoadError('')
 
     try {
-      const vapiCalls = await getVapiCalls(100)
-      setCalls(Array.isArray(vapiCalls) ? vapiCalls : [])
-      setDataSource('vapi')
+      const voiceCalls = await getVoiceCalls(100)
+      setCalls(Array.isArray(voiceCalls) ? voiceCalls : [])
+      setDataSource('live')
     } catch (error) {
       setCalls([])
       setDataSource('error')
@@ -247,7 +247,7 @@ export default function CallHistory() {
             <h1>Lịch sử cuộc gọi</h1>
             <span className="call-count">{filteredCalls.length} cuộc gọi</span>
             <span className={`data-source-badge ${dataSource}`}>
-              {dataSource === 'vapi' ? 'Đã kết nối' : 'Chưa kết nối'}
+              {dataSource === 'live' ? 'Đã kết nối' : 'Chưa kết nối'}
             </span>
           </div>
           <div className="page-header-actions">

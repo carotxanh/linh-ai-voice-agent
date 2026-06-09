@@ -1,83 +1,94 @@
-# LINH AI — AI Voice Agent cho doanh nghiệp Việt
+# LINH AI - LinhVoice
 
-> Trợ lý giọng nói AI giúp doanh nghiệp không bỏ lỡ khách hàng 24/7.
-> Giải nhì VNPT AI Hackathon 2026.
+Trợ lý giọng nói AI cho doanh nghiệp Việt, tập trung vào quản lý cuộc gọi, trợ lý AI, hotline và kho dữ liệu vận hành.
 
 ## Kiến trúc
 
-```
-linh-project/
-├── backend/          # FastAPI server
-│   ├── .env          # ELEVENLABS_API_KEY + AGENT_ID + VAPI_API_KEY
-│   ├── main.py       # ElevenLabs signed URL + Vapi API proxy
-│   └── requirements.txt
-└── frontend/         # React + Vite
-    ├── src/
-    │   ├── App.jsx   # UI + ElevenLabs voice integration
-    │   └── index.css
-    └── package.json
+```text
+linh-ai-voice-agent/
+├── backend/          # FastAPI, JWT auth, PostgreSQL, voice data proxy
+├── frontend/         # React + Vite dashboard
+└── docker-compose.yml
 ```
 
-## Cài đặt & Chạy
+Mỗi tài khoản LinhVoice có một khóa kết nối thoại riêng. Khóa này được mã hóa rồi lưu trong PostgreSQL, không cấu hình cứng trong `.env`.
 
-### 1. Backend
+## Chạy PostgreSQL bằng Docker
 
-Tạo môi trường
-```bash
+```powershell
+docker compose up -d postgres
+docker compose ps
+```
+
+Database mặc định:
+
+```env
+DATABASE_URL=postgresql+psycopg2://<DB_USER>:<DB_PASSWORD>@localhost:5432/<DB_NAME>
+```
+
+## Backend
+
+```powershell
 conda create -n linh-voice python=3.11
 conda activate linh-voice
-```
-
-```bash
 cd backend
 pip install -r requirements.txt
 ```
 
-Tạo file `.env`:
-```env
-VAPI_API_KEY=your_vapi_api_key_here
-# Optional, default: https://api.vapi.ai
-VAPI_API_BASE_URL=https://api.vapi.ai
+Tạo khóa mã hóa dữ liệu:
+
+```powershell
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Chạy server:
-```bash
+Tạo `backend/.env`:
+
+```env
+DATABASE_URL=postgresql+psycopg2://<DB_USER>:<DB_PASSWORD>@localhost:5432/<DB_NAME>
+JWT_SECRET_KEY=replace_with_a_long_random_secret
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=1440
+DATA_ENCRYPTION_KEY=paste_generated_fernet_key_here
+VOICE_API_BASE_URL=https://api.vapi.ai
+```
+
+Chạy backend:
+
+```powershell
 uvicorn main:app --reload --port 8000
 ```
 
-### 2. Frontend
+Backend sẽ tự tạo bảng `users` và bổ sung các cột cần thiết khi khởi động.
 
-```bash
+## Tạo tài khoản thủ công kèm khóa kết nối
+
+Chạy từ thư mục `backend`:
+
+```powershell
+python scripts\create_user.py --email owner@company.com --full-name "Company Owner"
+```
+
+Script sẽ hỏi mật khẩu và khóa kết nối bằng prompt ẩn để tránh lưu secret trong terminal history. Nếu email đã tồn tại, script sẽ cập nhật mật khẩu, tên và khóa kết nối mới cho tài khoản đó.
+
+## Frontend
+
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
 Nếu backend không chạy ở `http://localhost:8000`, tạo `frontend/.env`:
+
 ```env
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-Mở trình duyệt tại `http://localhost:5173`.
+Mở `http://localhost:5173`.
 
-## Sử dụng
+## Ghi chú sản phẩm
 
-1. Click vào **nút điện thoại** trên hero panel
-2. Cho phép truy cập microphone
-3. Nói chuyện với LINH AI
-4. Click lại để kết thúc cuộc hội thoại
-
-## Tech Stack
-
-| Layer    | Công nghệ                          |
-|----------|-------------------------------------|
-| Frontend | React 19, Vite, @elevenlabs/react   |
-| Backend  | FastAPI, httpx, python-dotenv       |
-| AI Agent | ElevenLabs Conversational AI, Vapi  |
-
-## Yêu cầu
-
-- Python 3.10+
-- Node.js 18+
-- Tài khoản [ElevenLabs](https://elevenlabs.io/) với Agent đã tạo
-- Vapi API key trong [Vapi Dashboard](https://dashboard.vapi.ai/)
+- Chủ doanh nghiệp đăng nhập bằng tài khoản LinhVoice.
+- Mỗi tài khoản có một khóa kết nối thoại riêng trong PostgreSQL.
+- Trợ lý AI nên chia theo nghiệp vụ như Sale, CSKH, Đặt lịch, Thu hồi công nợ hoặc chi nhánh.
+- Nhân viên nên là tài khoản vận hành riêng, không nhất thiết tạo một trợ lý AI riêng cho từng người.

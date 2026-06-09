@@ -1,20 +1,112 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
+import bcrypt
+import jwt
+from cryptography.fernet import Fernet, InvalidToken
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine, text
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 AGENT_ID = os.getenv("AGENT_ID")
-VAPI_API_KEY = os.getenv("VAPI_API_KEY")
-VAPI_API_BASE_URL = os.getenv("VAPI_API_BASE_URL", "https://api.vapi.ai").rstrip("/")
+DEFAULT_VOICE_API_BASE_URL = os.getenv("VOICE_API_BASE_URL")
+if DEFAULT_VOICE_API_BASE_URL:
+    DEFAULT_VOICE_API_BASE_URL = DEFAULT_VOICE_API_BASE_URL.rstrip("/")
+DATABASE_URL = os.getenv("DATABASE_URL")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
+DATA_ENCRYPTION_KEY = os.getenv("DATA_ENCRYPTION_KEY")
+try:
+    fernet = Fernet(DATA_ENCRYPTION_KEY.encode("utf-8")) if DATA_ENCRYPTION_KEY else None
+except ValueError:
+    fernet = None
 
 app = FastAPI(title="LINH AI Backend", version="1.0.0")
+security = HTTPBearer()
+Base = declarative_base()
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    full_name = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="owner")
+    hashed_password = Column(String(255), nullable=False)
+    voice_api_key_encrypted = Column(String, nullable=True)
+    voice_api_base_url = Column(String(255), nullable=False, default=DEFAULT_VOICE_API_BASE_URL)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    full_name: str
+    role: str
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class AccountIntegrationRequest(BaseModel):
+    api_key: str | None = None
+    api_base_url: str | None = None
+
+
+class AccountIntegrationResponse(BaseModel):
+    has_api_key: bool
+    api_base_url: str
+
+
+def ensure_user_columns():
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS voice_api_key_encrypted TEXT"))
+        connection.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "voice_api_base_url VARCHAR(255) DEFAULT 'https://api.vapi.ai' NOT NULL"
+            )
+        )
+
+
+@app.on_event("startup")
+def create_database_tables():
+    Base.metadata.create_all(bind=engine)
+    ensure_user_columns()
 
 # CORS — cho phép frontend Vite dev server (port 5173) gọi API
 app.add_middleware(
@@ -31,18 +123,183 @@ async def health_check():
     return {"status": "ok", "service": "LINH AI Backend"}
 
 
-def require_vapi_api_key() -> str:
-    if not VAPI_API_KEY:
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
+
+
+def encrypt_secret(value: str) -> str:
+    if not fernet:
         raise HTTPException(
             status_code=500,
-            detail="VAPI_API_KEY chua duoc cau hinh trong .env",
+            detail="May chu chua co DATA_ENCRYPTION_KEY hop le de bao ve khoa ket noi",
         )
-    return VAPI_API_KEY
+    return fernet.encrypt(value.encode("utf-8")).decode("utf-8")
 
 
-async def vapi_get(path: str, params: dict[str, Any] | None = None) -> Any:
-    token = require_vapi_api_key()
-    url = f"{VAPI_API_BASE_URL}{path}"
+def decrypt_secret(value: str) -> str:
+    if not fernet:
+        raise HTTPException(
+            status_code=500,
+            detail="May chu chua co DATA_ENCRYPTION_KEY hop le de doc khoa ket noi",
+        )
+    try:
+        return fernet.decrypt(value.encode("utf-8")).decode("utf-8")
+    except InvalidToken:
+        raise HTTPException(status_code=500, detail="Khoa ket noi da luu khong doc duoc")
+
+
+def serialize_user(user: User) -> dict[str, Any]:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+    }
+
+
+def create_access_token(user: User) -> str:
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRE_MINUTES)
+    payload = {
+        "sub": str(user.id),
+        "email": user.email,
+        "role": user.role,
+        "exp": expires_at,
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        user_id = int(payload.get("sub"))
+    except (jwt.PyJWTError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Token khong hop le")
+
+    user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Tai khoan khong ton tai hoac da bi khoa")
+
+    return user
+
+
+@app.post("/api/auth/register", response_model=AuthResponse)
+async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    email = normalize_email(payload.email)
+    full_name = payload.full_name.strip()
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email khong hop le")
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Mat khau phai co it nhat 8 ky tu")
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Vui long nhap ten nguoi dung")
+
+    existing_user = db.query(User).filter(User.email == email).first()
+    if existing_user:
+        raise HTTPException(status_code=409, detail="Email nay da duoc dang ky")
+
+    user = User(
+        email=email,
+        full_name=full_name,
+        role="owner",
+        hashed_password=hash_password(payload.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "access_token": create_access_token(user),
+        "user": serialize_user(user),
+    }
+
+
+@app.post("/api/auth/login", response_model=AuthResponse)
+async def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    email = normalize_email(payload.email)
+    user = db.query(User).filter(User.email == email, User.is_active.is_(True)).first()
+
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Email hoac mat khau khong dung")
+
+    return {
+        "access_token": create_access_token(user),
+        "user": serialize_user(user),
+    }
+
+
+@app.get("/api/auth/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_user)):
+    return serialize_user(current_user)
+
+
+@app.get("/api/account/integration", response_model=AccountIntegrationResponse)
+async def get_account_integration(current_user: User = Depends(get_current_user)):
+    return {
+        "has_api_key": bool(current_user.voice_api_key_encrypted),
+        "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
+    }
+
+
+@app.patch("/api/account/integration", response_model=AccountIntegrationResponse)
+async def update_account_integration(
+    payload: AccountIntegrationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    api_base_url = (payload.api_base_url or current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL).strip()
+    if not api_base_url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Dia chi ket noi khong hop le")
+
+    current_user.voice_api_base_url = api_base_url.rstrip("/")
+    if payload.api_key is not None:
+        api_key = payload.api_key.strip()
+        if len(api_key) < 12:
+            raise HTTPException(status_code=400, detail="Khoa ket noi qua ngan")
+        current_user.voice_api_key_encrypted = encrypt_secret(api_key)
+
+    current_user.updated_at = datetime.now(timezone.utc)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "has_api_key": bool(current_user.voice_api_key_encrypted),
+        "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
+    }
+
+
+def get_voice_api_config(user: User) -> tuple[str, str]:
+    if not user.voice_api_key_encrypted:
+        raise HTTPException(
+            status_code=400,
+            detail="Tai khoan chua cau hinh khoa ket noi LinhVoice",
+        )
+    return decrypt_secret(user.voice_api_key_encrypted), (user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL).rstrip("/")
+
+
+async def voice_api_get(user: User, path: str, params: dict[str, Any] | None = None) -> Any:
+    token, base_url = get_voice_api_config(user)
+    url = f"{base_url}{path}"
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         try:
@@ -57,21 +314,21 @@ async def vapi_get(path: str, params: dict[str, Any] | None = None) -> Any:
         except httpx.RequestError as e:
             raise HTTPException(
                 status_code=502,
-                detail=f"Khong the ket noi toi Vapi API: {str(e)}",
+                detail=f"Khong the ket noi toi dich vu thoai: {str(e)}",
             )
 
     if response.status_code >= 400:
         raise HTTPException(
             status_code=response.status_code,
-            detail=f"Vapi API loi: {response.text}",
+            detail=f"Dich vu thoai bao loi: {response.text}",
         )
 
     return response.json()
 
 
-async def vapi_patch(path: str, payload: dict[str, Any]) -> Any:
-    token = require_vapi_api_key()
-    url = f"{VAPI_API_BASE_URL}{path}"
+async def voice_api_patch(user: User, path: str, payload: dict[str, Any]) -> Any:
+    token, base_url = get_voice_api_config(user)
+    url = f"{base_url}{path}"
 
     async with httpx.AsyncClient(timeout=20.0) as client:
         try:
@@ -86,26 +343,26 @@ async def vapi_patch(path: str, payload: dict[str, Any]) -> Any:
         except httpx.RequestError as e:
             raise HTTPException(
                 status_code=502,
-                detail=f"Khong the ket noi toi Vapi API: {str(e)}",
+                detail=f"Khong the ket noi toi dich vu thoai: {str(e)}",
             )
 
     if response.status_code >= 400:
         raise HTTPException(
             status_code=response.status_code,
-            detail=f"Vapi API loi: {response.text}",
+            detail=f"Dich vu thoai bao loi: {response.text}",
         )
 
     return response.json()
 
 
-async def vapi_upload_file(file: UploadFile) -> Any:
-    token = require_vapi_api_key()
+async def voice_api_upload_file(user: User, file: UploadFile) -> Any:
+    token, base_url = get_voice_api_config(user)
     content = await file.read()
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(
-                f"{VAPI_API_BASE_URL}/file",
+                f"{base_url}/file",
                 files={
                     "file": (
                         file.filename,
@@ -118,13 +375,13 @@ async def vapi_upload_file(file: UploadFile) -> Any:
         except httpx.RequestError as e:
             raise HTTPException(
                 status_code=502,
-                detail=f"Khong the upload file toi Vapi API: {str(e)}",
+                detail=f"Khong the tai tai lieu len dich vu thoai: {str(e)}",
             )
 
     if response.status_code >= 400:
         raise HTTPException(
             status_code=response.status_code,
-            detail=f"Vapi API loi: {response.text}",
+            detail=f"Dich vu thoai bao loi: {response.text}",
         )
 
     return response.json()
@@ -209,7 +466,7 @@ def normalize_call(call: dict[str, Any]) -> dict[str, Any]:
     )
     assistant_name = get_nested(call, "assistant", "name") or call.get("assistantName") or "Unknown assistant"
     transcript = get_nested(call, "artifact", "transcript") or call.get("transcript") or ""
-    summary = get_nested(call, "analysis", "summary") or call.get("summary") or "Chua co tom tat tu Vapi."
+    summary = get_nested(call, "analysis", "summary") or call.get("summary") or "Chua co tom tat."
     recording_url = (
         get_nested(call, "artifact", "recording", "stereoUrl")
         or get_nested(call, "artifact", "recording", "mono", "combinedUrl")
@@ -287,7 +544,7 @@ def normalize_phone_number(phone_number: dict[str, Any]) -> dict[str, Any]:
 def normalize_file(file: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": file.get("id"),
-        "name": file.get("name") or file.get("originalName") or "Vapi file",
+        "name": file.get("name") or file.get("originalName") or "Tai lieu",
         "originalName": file.get("originalName") or "",
         "status": file.get("status") or "",
         "purpose": file.get("purpose") or "",
@@ -303,20 +560,25 @@ def normalize_file(file: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@app.get("/api/vapi/assistants")
-async def list_vapi_assistants(limit: int = Query(100, ge=1, le=1000)):
-    assistants = await vapi_get("/assistant", {"limit": limit})
+@app.get("/api/voice/assistants")
+async def list_voice_assistants(
+    limit: int = Query(100, ge=1, le=1000),
+    current_user: User = Depends(get_current_user),
+):
+    assistants = await voice_api_get(current_user, "/assistant", {"limit": limit})
     return [normalize_assistant(assistant) for assistant in assistants]
 
 
-@app.get("/api/vapi/calls")
-async def list_vapi_calls(
+@app.get("/api/voice/calls")
+async def list_voice_calls(
     limit: int = Query(50, ge=1, le=1000),
     assistant_id: str | None = Query(default=None, alias="assistantId"),
     created_at_ge: str | None = Query(default=None, alias="createdAtGe"),
     created_at_le: str | None = Query(default=None, alias="createdAtLe"),
+    current_user: User = Depends(get_current_user),
 ):
-    calls = await vapi_get(
+    calls = await voice_api_get(
+        current_user,
         "/call",
         {
             "limit": limit,
@@ -328,32 +590,42 @@ async def list_vapi_calls(
     return [normalize_call(call) for call in calls]
 
 
-@app.get("/api/vapi/calls/{call_id}")
-async def get_vapi_call(call_id: str):
-    call = await vapi_get(f"/call/{call_id}")
+@app.get("/api/voice/calls/{call_id}")
+async def get_voice_call(call_id: str, current_user: User = Depends(get_current_user)):
+    call = await voice_api_get(current_user, f"/call/{call_id}")
     return normalize_call(call)
 
 
-@app.get("/api/vapi/phone-numbers")
-async def list_vapi_phone_numbers(limit: int = Query(100, ge=1, le=1000)):
-    phone_numbers = await vapi_get("/phone-number", {"limit": limit})
+@app.get("/api/voice/phone-numbers")
+async def list_voice_phone_numbers(
+    limit: int = Query(100, ge=1, le=1000),
+    current_user: User = Depends(get_current_user),
+):
+    phone_numbers = await voice_api_get(current_user, "/phone-number", {"limit": limit})
     return [normalize_phone_number(phone_number) for phone_number in phone_numbers]
 
 
-@app.get("/api/vapi/files")
-async def list_vapi_files():
-    files = await vapi_get("/file")
+@app.get("/api/voice/files")
+async def list_voice_files(current_user: User = Depends(get_current_user)):
+    files = await voice_api_get(current_user, "/file")
     return [normalize_file(file) for file in files]
 
 
-@app.post("/api/vapi/files")
-async def upload_vapi_file(file: UploadFile = File(...)):
-    uploaded_file = await vapi_upload_file(file)
+@app.post("/api/voice/files")
+async def upload_voice_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    uploaded_file = await voice_api_upload_file(current_user, file)
     return normalize_file(uploaded_file)
 
 
-@app.patch("/api/vapi/assistants/{assistant_id}")
-async def update_vapi_assistant(assistant_id: str, payload: dict[str, Any]):
+@app.patch("/api/voice/assistants/{assistant_id}")
+async def update_voice_assistant(
+    assistant_id: str,
+    payload: dict[str, Any],
+    current_user: User = Depends(get_current_user),
+):
     allowed_fields = {
         "name",
         "firstMessage",
@@ -368,28 +640,38 @@ async def update_vapi_assistant(assistant_id: str, payload: dict[str, Any]):
     if not safe_payload:
         raise HTTPException(status_code=400, detail="Khong co truong hop le de cap nhat assistant")
 
-    assistant = await vapi_patch(f"/assistant/{assistant_id}", safe_payload)
+    assistant = await voice_api_patch(current_user, f"/assistant/{assistant_id}", safe_payload)
     return normalize_assistant(assistant)
 
 
-@app.patch("/api/vapi/phone-numbers/{phone_number_id}")
-async def update_vapi_phone_number(phone_number_id: str, payload: dict[str, Any]):
-    allowed_fields = {"assistantId", "name", "fallbackDestination", "server"}
+@app.patch("/api/voice/phone-numbers/{phone_number_id}")
+async def update_voice_phone_number(
+    phone_number_id: str,
+    payload: dict[str, Any],
+    current_user: User = Depends(get_current_user),
+):
+    allowed_fields = {"assistantId", "name", "server"}
     safe_payload = {key: value for key, value in payload.items() if key in allowed_fields}
 
     if not safe_payload:
         raise HTTPException(status_code=400, detail="Khong co truong hop le de cap nhat phone number")
 
-    phone_number = await vapi_patch(f"/phone-number/{phone_number_id}", safe_payload)
+    phone_number = await voice_api_patch(current_user, f"/phone-number/{phone_number_id}", safe_payload)
     return normalize_phone_number(phone_number)
 
 
-@app.get("/api/vapi/dashboard")
-async def get_vapi_dashboard(limit: int = Query(50, ge=1, le=1000)):
-    calls = [normalize_call(call) for call in await vapi_get("/call", {"limit": limit})]
-    assistants = [normalize_assistant(assistant) for assistant in await vapi_get("/assistant", {"limit": 100})]
-    phone_numbers = [normalize_phone_number(phone_number) for phone_number in await vapi_get("/phone-number", {"limit": 100})]
-    files = [normalize_file(file) for file in await vapi_get("/file")]
+@app.get("/api/voice/dashboard")
+async def get_voice_dashboard(
+    limit: int = Query(50, ge=1, le=1000),
+    current_user: User = Depends(get_current_user),
+):
+    calls = [normalize_call(call) for call in await voice_api_get(current_user, "/call", {"limit": limit})]
+    assistants = [normalize_assistant(assistant) for assistant in await voice_api_get(current_user, "/assistant", {"limit": 100})]
+    phone_numbers = [
+        normalize_phone_number(phone_number)
+        for phone_number in await voice_api_get(current_user, "/phone-number", {"limit": 100})
+    ]
+    files = [normalize_file(file) for file in await voice_api_get(current_user, "/file")]
 
     completed = sum(1 for call in calls if call["status"] == "completed")
     active = sum(1 for call in calls if call["status"] == "active")
