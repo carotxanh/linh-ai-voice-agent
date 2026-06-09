@@ -8,16 +8,16 @@ export const scenes = [
   },
   {
     id: 'problem',
-    title: 'Một triệu cuộc gọi đã được xử lý',
+    title: 'Cuộc gọi thật, phản hồi tự nhiên',
     subtitle:
-      'Khách hàng muốn được trả lời ngay, nhưng đội ngũ con người không thể trực mọi cuộc gọi trong mọi khung giờ.',
+      'LINH giúp nghe, hỏi lại và tóm tắt thông tin để đội ngũ xử lý khách hàng rõ ràng hơn.',
     mood: 'warning',
   },
   {
     id: 'solution',
-    title: 'Làm thế nào để sử dụng LINH?',
+    title: 'Luồng hoạt động đơn giản',
     subtitle:
-      'Linh AI Voice Agent nghe, hiểu và phản hồi khách hàng tự động để đội ngũ của bạn tập trung vào việc quan trọng hơn.',
+      'Nạp dữ liệu, thử giọng nói và kết nối vào quy trình vận hành khi đã sẵn sàng.',
     mood: 'blue',
   },
   {

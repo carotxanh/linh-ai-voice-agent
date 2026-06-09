@@ -15,7 +15,7 @@ export default function IndustriesSection() {
 
       <div className="industry-matrix">
         <div className="industry-center-card">
-          <img className="industry-center-logo" src="/linh-logo.png" alt="LINH logo" />
+          <img className="industry-center-logo" src="/linh-logo.svg" alt="LINH logo" />
         </div>
 
         {industriesMatrix.map((item, index) => (

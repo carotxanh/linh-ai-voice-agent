@@ -80,7 +80,7 @@ export default function LoginModal({ show, onClose }) {
 
         <div className="login-header">
           <div className="brand-mark brand-logo-wrap">
-            <img className="brand-logo" src="/linh-logo.png" alt="LINH logo" />
+            <img className="brand-logo" src="/linh-logo.svg" alt="LINH logo" />
           </div>
           <h2>{isRegistering ? 'Tạo tài khoản LinhVoice' : 'Đăng nhập LinhVoice'}</h2>
           <p>{isRegistering ? 'Tạo tài khoản chủ doanh nghiệp để quản lý trợ lý AI' : 'Đăng nhập để quản lý cuộc gọi và dữ liệu doanh nghiệp'}</p>

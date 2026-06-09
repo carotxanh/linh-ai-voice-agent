@@ -18,7 +18,7 @@ export default function Footer({ onLoginClick }) {
       <div className="footer-main">
         <div className="footer-brand">
           <div className="footer-logo-wrap">
-            <img className="footer-logo" src="/linh-logo.png" alt="LINH AI logo" />
+            <img className="footer-logo" src="/linh-logo.svg" alt="LINH AI logo" />
             <div>
               <p className="brand-title">LINH AI</p>
               <p className="footer-tagline">AI Voice Agent cho doanh nghiệp</p>

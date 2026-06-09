@@ -1,6 +1,8 @@
 import os
 from datetime import datetime, timedelta, timezone
+from time import perf_counter
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import bcrypt
@@ -12,6 +14,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
@@ -34,7 +37,14 @@ except ValueError:
 app = FastAPI(title="LINH AI Backend", version="1.0.0")
 security = HTTPBearer()
 Base = declarative_base()
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+database_host = urlparse(DATABASE_URL.replace("+psycopg2", "")).hostname if DATABASE_URL else None
+engine_options = {"pool_pre_ping": True}
+if database_host and database_host.endswith(".supabase.com"):
+    engine_options["connect_args"] = {
+        "sslmode": "require",
+        "connect_timeout": 10,
+    }
+engine = create_engine(DATABASE_URL, **engine_options)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -121,6 +131,24 @@ app.add_middleware(
 @app.get("/")
 async def health_check():
     return {"status": "ok", "service": "LINH AI Backend"}
+
+
+@app.get("/api/health/database")
+def database_health_check():
+    started_at = perf_counter()
+
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT 1")).scalar_one()
+    except SQLAlchemyError:
+        raise HTTPException(status_code=503, detail="Database connection failed")
+
+    return {
+        "status": "ok",
+        "database": "connected",
+        "query": result == 1,
+        "latency_ms": round((perf_counter() - started_at) * 1000, 2),
+    }
 
 
 def get_db():
