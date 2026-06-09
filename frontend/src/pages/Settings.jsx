@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
 import {
-  getVapiAssistants,
-  getVapiPhoneNumbers,
-  updateVapiAssistant,
-  updateVapiPhoneNumber,
-} from '../services/vapi'
+  getAccountIntegration,
+  getVoiceAssistants,
+  getVoicePhoneNumbers,
+  updateAccountIntegration,
+  updateVoiceAssistant,
+  updateVoicePhoneNumber,
+} from '../services/voice'
 import './Settings.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
@@ -23,7 +25,9 @@ function MIcon({ name, className = '', filled = false, size = 24 }) {
 }
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState('strategy')
+  const [activeSection, setActiveSection] = useState('connection')
+  const [connection, setConnection] = useState({ hasApiKey: false, apiBaseUrl: '' })
+  const [connectionKey, setConnectionKey] = useState('')
   const [assistants, setAssistants] = useState([])
   const [phoneNumbers, setPhoneNumbers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -32,7 +36,7 @@ export default function Settings() {
   const [saveMessage, setSaveMessage] = useState('')
 
   const sections = [
-    { id: 'strategy', icon: 'account_tree', label: 'Cách thiết lập' },
+    { id: 'connection', icon: 'vpn_key', label: 'Kết nối' },
     { id: 'assistants', icon: 'smart_toy', label: 'Trợ lý AI' },
     { id: 'phoneNumbers', icon: 'settings_phone', label: 'Hotline' },
   ]
@@ -42,12 +46,25 @@ export default function Settings() {
     setLoadError('')
 
     try {
-      const [vapiAssistants, vapiPhoneNumbers] = await Promise.all([
-        getVapiAssistants(100),
-        getVapiPhoneNumbers(100),
+      const integration = await getAccountIntegration()
+      const nextConnection = {
+        hasApiKey: Boolean(integration.has_api_key),
+        apiBaseUrl: integration.api_base_url || '',
+      }
+      setConnection(nextConnection)
+
+      if (!nextConnection.hasApiKey) {
+        setAssistants([])
+        setPhoneNumbers([])
+        return
+      }
+
+      const [loadedAssistants, loadedPhoneNumbers] = await Promise.all([
+        getVoiceAssistants(100),
+        getVoicePhoneNumbers(100),
       ])
-      setAssistants(Array.isArray(vapiAssistants) ? vapiAssistants : [])
-      setPhoneNumbers(Array.isArray(vapiPhoneNumbers) ? vapiPhoneNumbers : [])
+      setAssistants(Array.isArray(loadedAssistants) ? loadedAssistants : [])
+      setPhoneNumbers(Array.isArray(loadedPhoneNumbers) ? loadedPhoneNumbers : [])
     } catch (error) {
       setAssistants([])
       setPhoneNumbers([])
@@ -61,6 +78,28 @@ export default function Settings() {
     loadSettingsData()
   }, [])
 
+  const handleSaveConnection = async () => {
+    setIsSaving(true)
+    setSaveMessage('')
+
+    try {
+      const updatedConnection = await updateAccountIntegration({
+        api_key: connectionKey,
+      })
+      setConnection({
+        hasApiKey: Boolean(updatedConnection.has_api_key),
+        apiBaseUrl: updatedConnection.api_base_url || '',
+      })
+      setConnectionKey('')
+      setSaveMessage('Đã lưu kết nối cho tài khoản này.')
+      await loadSettingsData()
+    } catch (error) {
+      setSaveMessage(`Không thể lưu kết nối: ${error.message}`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleAssistantFieldChange = (assistantId, field, value) => {
     setAssistants((currentAssistants) => currentAssistants.map((assistant) => (
       assistant.id === assistantId ? { ...assistant, [field]: value } : assistant
@@ -72,7 +111,7 @@ export default function Settings() {
     setSaveMessage('')
 
     try {
-      const updatedAssistant = await updateVapiAssistant(assistant.id, {
+      const updatedAssistant = await updateVoiceAssistant(assistant.id, {
         name: assistant.name,
         firstMessage: assistant.firstMessage,
         endCallMessage: assistant.endCallMessage,
@@ -93,7 +132,7 @@ export default function Settings() {
     setSaveMessage('')
 
     try {
-      const updatedPhoneNumber = await updateVapiPhoneNumber(phoneNumberId, {
+      const updatedPhoneNumber = await updateVoicePhoneNumber(phoneNumberId, {
         assistantId: assistantId || null,
       })
       setPhoneNumbers((currentPhoneNumbers) => currentPhoneNumbers.map((item) => (
@@ -107,12 +146,14 @@ export default function Settings() {
     }
   }
 
+  const isDisconnected = !connection.hasApiKey
+
   return (
     <DashboardLayout>
       <div className="settings-page">
         <div className="settings-header">
           <h1>Thiết lập LinhVoice</h1>
-          <p className="settings-subtitle">Cấu hình trợ lý AI, hotline và cách tổ chức dữ liệu cho doanh nghiệp.</p>
+          <p className="settings-subtitle">Cấu hình kết nối, trợ lý AI, hotline và cách tổ chức dữ liệu cho doanh nghiệp.</p>
         </div>
 
         {loadError && (
@@ -149,47 +190,45 @@ export default function Settings() {
           </nav>
 
           <div className="settings-content">
-            {activeSection === 'strategy' && (
+            {activeSection === 'connection' && (
               <div className="settings-section">
-                <h2>Cách tổ chức trợ lý AI</h2>
-                <p className="settings-section-desc">Thiết lập theo nghiệp vụ để chủ doanh nghiệp dễ quản lý, tránh tạo quá nhiều trợ lý không cần thiết.</p>
+                <h2>Kết nối dữ liệu thoại</h2>
+                <p className="settings-section-desc">Mỗi tài khoản doanh nghiệp có một khóa kết nối riêng để LinhVoice tải cuộc gọi, trợ lý AI, hotline và kho dữ liệu đúng phạm vi.</p>
 
                 <div className="settings-group">
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h3>Tạo trợ lý theo vai trò kinh doanh</h3>
-                      <p>Nên có trợ lý riêng cho Sale, CSKH, Đặt lịch, Thu hồi công nợ hoặc từng chi nhánh nếu kịch bản và dữ liệu khác nhau.</p>
+                      <h3>Trạng thái kết nối</h3>
+                      <p>{connection.hasApiKey ? 'Tài khoản này đã có khóa kết nối.' : 'Tài khoản này chưa có khóa kết nối.'}</p>
                     </div>
-                    <span className="data-source-badge vapi">Khuyến nghị</span>
+                    <span className={`data-source-badge ${connection.hasApiKey ? 'connected' : ''}`}>
+                      {connection.hasApiKey ? 'Đã kết nối' : 'Chưa kết nối'}
+                    </span>
                   </div>
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <h3>Không tạo trợ lý theo từng nhân viên</h3>
-                      <p>Nhân viên nên dùng tài khoản riêng để vận hành cùng một trợ lý. Chỉ tách trợ lý khi kiến thức, giọng nói, hotline hoặc quy trình thật sự khác.</p>
-                    </div>
-                    <span className="data-source-badge">Dễ quản lý</span>
-                  </div>
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <h3>Tài khoản dành cho người vận hành</h3>
-                      <p>Chủ doanh nghiệp, quản lý, trưởng sale và trưởng CSKH nên có tài khoản riêng để phân quyền và theo dõi trách nhiệm.</p>
-                    </div>
-                    <span className="data-source-badge">Phân quyền</span>
-                  </div>
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <h3>Tách dữ liệu theo chủ đề</h3>
-                      <p>Bảng giá, chính sách, FAQ và danh mục sản phẩm nên là các tài liệu riêng để dễ cập nhật và kiểm tra khi có lỗi.</p>
-                    </div>
-                    <span className="data-source-badge">Kho dữ liệu</span>
-                  </div>
-                </div>
 
-                <div className="settings-actions">
-                  <button className="btn-save" onClick={loadSettingsData} disabled={isLoading}>
-                    <MIcon name={isLoading ? 'progress_activity' : 'sync'} size={18} />
-                    {isLoading ? 'Đang cập nhật' : 'Cập nhật cấu hình'}
-                  </button>
+                  <div className="setting-item">
+                    <div className="setting-info">
+                      <h3>Khóa kết nối</h3>
+                      <p>Nhập khóa được cấp cho doanh nghiệp. LinhVoice sẽ mã hóa khóa này trước khi lưu.</p>
+                    </div>
+                    <div className="setting-stack">
+                      <input
+                        type="password"
+                        className="setting-input"
+                        value={connectionKey}
+                        onChange={(event) => setConnectionKey(event.target.value)}
+                        placeholder={connection.hasApiKey ? 'Nhập khóa mới để thay thế' : 'Nhập khóa kết nối'}
+                      />
+                      <button
+                        className="btn-save"
+                        onClick={handleSaveConnection}
+                        disabled={isSaving || connectionKey.trim().length < 12}
+                      >
+                        <MIcon name="save" size={18} />
+                        {isSaving ? 'Đang lưu' : 'Lưu kết nối'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -230,8 +269,8 @@ export default function Settings() {
                   {assistants.length === 0 && (
                     <div className="setting-item">
                       <div className="setting-info">
-                        <h3>Chưa có trợ lý AI</h3>
-                        <p>Hãy tạo trợ lý AI để bắt đầu nhận và xử lý cuộc gọi.</p>
+                        <h3>{isDisconnected ? 'Chưa kết nối dữ liệu thoại' : 'Chưa có trợ lý AI'}</h3>
+                        <p>{isDisconnected ? 'Hãy lưu khóa kết nối trước để tải danh sách trợ lý AI.' : 'Hãy tạo trợ lý AI để bắt đầu nhận và xử lý cuộc gọi.'}</p>
                       </div>
                     </div>
                   )}
@@ -270,8 +309,8 @@ export default function Settings() {
                   {phoneNumbers.length === 0 && (
                     <div className="setting-item">
                       <div className="setting-info">
-                        <h3>Chưa có hotline</h3>
-                        <p>Kết nối hotline để LinhVoice có thể nhận hoặc thực hiện cuộc gọi.</p>
+                        <h3>{isDisconnected ? 'Chưa kết nối dữ liệu thoại' : 'Chưa có hotline'}</h3>
+                        <p>{isDisconnected ? 'Hãy lưu khóa kết nối trước để tải danh sách hotline.' : 'Kết nối hotline để LinhVoice có thể nhận hoặc thực hiện cuộc gọi.'}</p>
                       </div>
                     </div>
                   )}

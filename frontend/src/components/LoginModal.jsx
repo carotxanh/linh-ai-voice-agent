@@ -1,31 +1,35 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login } from '../utils/auth'
+import { login, register } from '../utils/auth'
 
 export default function LoginModal({ show, onClose }) {
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
+    fullName: '',
     email: '',
     password: '',
   })
   const [errors, setErrors] = useState({})
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return re.test(email)
-  }
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+  const handleInputChange = (event) => {
+    const { name, value } = event.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
+      setErrors((prev) => ({ ...prev, [name]: '' }))
     }
   }
 
-  const handleLogin = (e) => {
-    e.preventDefault()
+  const handleLogin = async (event) => {
+    event.preventDefault()
     const newErrors = {}
+
+    if (isRegistering && !formData.fullName.trim()) {
+      newErrors.fullName = 'Vui lòng nhập họ tên'
+    }
 
     if (!formData.email) {
       newErrors.email = 'Vui lòng nhập email'
@@ -35,8 +39,8 @@ export default function LoginModal({ show, onClose }) {
 
     if (!formData.password) {
       newErrors.password = 'Vui lòng nhập mật khẩu'
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự'
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự'
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -44,8 +48,16 @@ export default function LoginModal({ show, onClose }) {
       return
     }
 
-    // Thực hiện đăng nhập
-    const result = login(formData.email, formData.password)
+    setIsSubmitting(true)
+    const result = isRegistering
+      ? await register({
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+      })
+      : await login(formData.email, formData.password)
+    setIsSubmitting(false)
+
     if (result.success) {
       onClose()
       navigate('/portal')
@@ -54,26 +66,43 @@ export default function LoginModal({ show, onClose }) {
     }
   }
 
-  const handleRegister = () => {
-    alert('Tạo tài khoản mới:\nVui lòng nhập email công ty và mật khẩu, đội ngũ LINH AI sẽ kích hoạt tài khoản cho bạn.')
+  const toggleMode = () => {
+    setErrors({})
+    setIsRegistering((value) => !value)
   }
 
   if (!show) return null
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={(event) => event.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
 
         <div className="login-header">
           <div className="brand-mark brand-logo-wrap">
             <img className="brand-logo" src="/linh-logo.png" alt="LINH logo" />
           </div>
-          <h2>Đăng nhập vào LINH AI</h2>
-          <p>Cổng đăng nhập và đăng ký tài khoản LINH AI</p>
+          <h2>{isRegistering ? 'Tạo tài khoản LinhVoice' : 'Đăng nhập LinhVoice'}</h2>
+          <p>{isRegistering ? 'Tạo tài khoản chủ doanh nghiệp để quản lý trợ lý AI' : 'Đăng nhập để quản lý cuộc gọi và dữ liệu doanh nghiệp'}</p>
         </div>
 
         <form onSubmit={handleLogin} className="login-form">
+          {isRegistering && (
+            <div className="form-group">
+              <label htmlFor="fullName">Họ tên</label>
+              <input
+                type="text"
+                id="fullName"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                className={errors.fullName ? 'input-error' : ''}
+                placeholder="Nguyễn Văn A"
+              />
+              {errors.fullName && <span className="error-message">{errors.fullName}</span>}
+            </div>
+          )}
+
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -102,21 +131,19 @@ export default function LoginModal({ show, onClose }) {
             {errors.password && <span className="error-message">{errors.password}</span>}
           </div>
 
-          <button type="submit" className="btn btn-primary btn-full">
-            Đăng nhập
+          <button type="submit" className="btn btn-primary btn-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Đang xử lý...' : isRegistering ? 'Tạo tài khoản' : 'Đăng nhập'}
           </button>
 
           <div className="form-divider">
             <span>hoặc</span>
           </div>
 
-          <button type="button" className="btn btn-secondary btn-full" onClick={handleRegister}>
-            Đăng ký tài khoản mới
+          <button type="button" className="btn btn-secondary btn-full" onClick={toggleMode}>
+            {isRegistering ? 'Tôi đã có tài khoản' : 'Tạo tài khoản mới'}
           </button>
         </form>
       </div>
     </div>
   )
 }
-
-// PropTypes removed for simplicity

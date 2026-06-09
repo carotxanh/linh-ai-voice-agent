@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import RippleText from '../components/RippleText'
-import { getVapiDashboard } from '../services/vapi'
+import { getVoiceDashboard } from '../services/voice'
 import './Portal.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
@@ -74,9 +74,9 @@ export default function Portal() {
     setLoadError('')
 
     try {
-      const data = await getVapiDashboard(50)
+      const data = await getVoiceDashboard(50)
       setDashboard(data)
-      setDataSource('vapi')
+      setDataSource('live')
     } catch (error) {
       setDashboard(emptyDashboard)
       setDataSource('error')
@@ -130,8 +130,8 @@ export default function Portal() {
             <p className="portal-subtitle">Tổng quan vận hành cuộc gọi, trợ lý AI, hotline và kho dữ liệu doanh nghiệp.</p>
           </div>
           <div className="portal-header-actions">
-            <span className={`portal-api-note ${dataSource === 'vapi' ? 'live' : ''}`}>
-              {dataSource === 'vapi' ? 'Đã kết nối' : 'Chưa kết nối'}
+            <span className={`portal-api-note ${dataSource === 'live' ? 'live' : ''}`}>
+              {dataSource === 'live' ? 'Đã kết nối' : 'Chưa kết nối'}
             </span>
             <button className="btn-secondary" onClick={loadDashboard} disabled={isLoading}>
               {isLoading ? 'Đang cập nhật' : 'Cập nhật'}

@@ -3,3 +3,8 @@ uvicorn[standard]
 httpx
 python-dotenv
 python-multipart
+sqlalchemy
+psycopg2-binary
+bcrypt
+PyJWT
+cryptography
