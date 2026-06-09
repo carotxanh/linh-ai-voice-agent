@@ -50,7 +50,6 @@ JWT_SECRET_KEY=replace_with_a_long_random_secret
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 DATA_ENCRYPTION_KEY=paste_generated_fernet_key_here
-VOICE_API_KEY=replace_with_voice_api_key
 VOICE_API_BASE_URL=https://api.vapi.ai
 ```
 

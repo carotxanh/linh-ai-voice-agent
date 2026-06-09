@@ -26,7 +26,6 @@ CORS_ORIGINS = [
     for origin in os.getenv("CORS_ORIGINS", "").split(",")
     if origin.strip()
 ]
-VOICE_API_KEY = os.getenv("VOICE_API_KEY")
 DEFAULT_VOICE_API_BASE_URL = os.getenv("VOICE_API_BASE_URL")
 if DEFAULT_VOICE_API_BASE_URL:
     DEFAULT_VOICE_API_BASE_URL = DEFAULT_VOICE_API_BASE_URL.rstrip("/")
@@ -292,7 +291,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @app.get(f"{API_PREFIX}/account/integration", response_model=AccountIntegrationResponse)
 async def get_account_integration(current_user: User = Depends(get_current_user)):
     return {
-        "has_api_key": bool(current_user.voice_api_key_encrypted or VOICE_API_KEY),
+        "has_api_key": bool(current_user.voice_api_key_encrypted),
         "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
     }
 
@@ -320,28 +319,23 @@ async def update_account_integration(
     db.refresh(current_user)
 
     return {
-        "has_api_key": bool(current_user.voice_api_key_encrypted or VOICE_API_KEY),
+        "has_api_key": bool(current_user.voice_api_key_encrypted),
         "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
     }
 
 
 def get_voice_api_config(user: User) -> tuple[str, str]:
-    token = (
-        decrypt_secret(user.voice_api_key_encrypted)
-        if user.voice_api_key_encrypted
-        else VOICE_API_KEY
-    )
-    if not token:
+    if not user.voice_api_key_encrypted:
         raise HTTPException(
             status_code=400,
-            detail="VOICE_API_KEY chua duoc cau hinh",
+            detail="Tai khoan chua cau hinh khoa ket noi LinhVoice",
         )
 
     base_url = user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL
     if not base_url:
         raise HTTPException(status_code=500, detail="VOICE_API_BASE_URL chua duoc cau hinh")
 
-    return token, base_url.rstrip("/")
+    return decrypt_secret(user.voice_api_key_encrypted), base_url.rstrip("/")
 
 
 async def voice_api_get(user: User, path: str, params: dict[str, Any] | None = None) -> Any:
