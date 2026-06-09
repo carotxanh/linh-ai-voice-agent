@@ -53,7 +53,7 @@ export default function DashboardLayout({ children }) {
         {/* Top Row */}
         <div className="sidebar-top-row">
           <div className="sidebar-brand" onClick={() => sidebarCollapsed && setSidebarCollapsed(false)}>
-            <img src="/linh-logo.png" alt="LINH" className="sidebar-logo" />
+            <img src="/linh-logo.svg" alt="LINH" className="sidebar-logo" />
             {!sidebarCollapsed && <span className="sidebar-brand-text">LINH AI</span>}
           </div>
           <button

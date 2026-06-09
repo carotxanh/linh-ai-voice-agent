@@ -17,7 +17,7 @@ export default function Navbar({ activeScene = 0, onNavigate, onCta }) {
     >
       <nav className="topbar-nav-card" aria-label="Điều hướng chính">
         <button className="topbar-logo-card" onClick={() => onNavigate(0)} type="button" aria-label="Về đầu trang">
-          <img src="/logos/logo-AI/LINH.png" alt="Linh AI" />
+          <img src="/linh-logo.svg" alt="Linh AI" />
         </button>
 
         {links.map(([label, index]) => (

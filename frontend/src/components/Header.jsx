@@ -3,7 +3,7 @@ export default function Header({ onLoginClick }) {
     <header className="navbar">
       <div className="brand">
         <div className="brand-mark brand-logo-wrap">
-          <img className="brand-logo" src="/linh-logo.png" alt="LINH logo" />
+          <img className="brand-logo" src="/linh-logo.svg" alt="LINH logo" />
         </div>
         <div>
           <p className="brand-title">LINH AI</p>
