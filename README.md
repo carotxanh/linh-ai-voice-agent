@@ -44,11 +44,13 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 Tạo `backend/.env`:
 
 ```env
+API_PREFIX=/api
 DATABASE_URL=postgresql+psycopg2://<DB_USER>:<DB_PASSWORD>@localhost:5432/<DB_NAME>
 JWT_SECRET_KEY=replace_with_a_long_random_secret
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 DATA_ENCRYPTION_KEY=paste_generated_fernet_key_here
+VOICE_API_KEY=replace_with_voice_api_key
 VOICE_API_BASE_URL=https://api.vapi.ai
 ```
 
@@ -78,11 +80,13 @@ npm install
 npm run dev
 ```
 
-Nếu backend không chạy ở `http://localhost:8000`, tạo `frontend/.env`:
+Frontend luôn gọi backend qua `/api` trên cùng domain. Khi chạy local, Vite proxy `/api` theo `frontend/.env`:
 
 ```env
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=/api
 ```
+
+Khi deploy, reverse proxy của domain chuyển `/api/*` tới FastAPI; frontend không cần hostname backend riêng.
 
 Mở `http://localhost:5173`.
 

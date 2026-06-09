@@ -19,8 +19,14 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
 
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-AGENT_ID = os.getenv("AGENT_ID")
+API_PREFIX = os.getenv("API_PREFIX", "/api").strip()
+API_PREFIX = f"/{API_PREFIX.strip('/')}" if API_PREFIX.strip("/") else ""
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+VOICE_API_KEY = os.getenv("VOICE_API_KEY")
 DEFAULT_VOICE_API_BASE_URL = os.getenv("VOICE_API_BASE_URL")
 if DEFAULT_VOICE_API_BASE_URL:
     DEFAULT_VOICE_API_BASE_URL = DEFAULT_VOICE_API_BASE_URL.rstrip("/")
@@ -103,12 +109,14 @@ class AccountIntegrationResponse(BaseModel):
 
 
 def ensure_user_columns():
+    voice_api_default = (DEFAULT_VOICE_API_BASE_URL or "").replace("'", "''")
+
     with engine.begin() as connection:
         connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS voice_api_key_encrypted TEXT"))
         connection.execute(
             text(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
-                "voice_api_base_url VARCHAR(255) DEFAULT 'https://api.vapi.ai' NOT NULL"
+                f"voice_api_base_url VARCHAR(255) DEFAULT '{voice_api_default}' NOT NULL"
             )
         )
 
@@ -118,22 +126,23 @@ def create_database_tables():
     Base.metadata.create_all(bind=engine)
     ensure_user_columns()
 
-# CORS — cho phép frontend Vite dev server (port 5173) gọi API
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://linhvoice.io.vn", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS â€” cho phÃ©p frontend Vite dev server (port 5173) gá»i API
+if CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
-@app.get("/")
+@app.get(f"{API_PREFIX}/health")
 async def health_check():
     return {"status": "ok", "service": "LINH AI Backend"}
 
 
-@app.get("/api/health/database")
+@app.get(f"{API_PREFIX}/health/database")
 def database_health_check():
     started_at = perf_counter()
 
@@ -229,7 +238,7 @@ def get_current_user(
     return user
 
 
-@app.post("/api/auth/register", response_model=AuthResponse)
+@app.post(f"{API_PREFIX}/auth/register", response_model=AuthResponse)
 async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     email = normalize_email(payload.email)
     full_name = payload.full_name.strip()
@@ -261,7 +270,7 @@ async def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     }
 
 
-@app.post("/api/auth/login", response_model=AuthResponse)
+@app.post(f"{API_PREFIX}/auth/login", response_model=AuthResponse)
 async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     email = normalize_email(payload.email)
     user = db.query(User).filter(User.email == email, User.is_active.is_(True)).first()
@@ -275,20 +284,20 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/auth/me", response_model=UserResponse)
+@app.get(f"{API_PREFIX}/auth/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return serialize_user(current_user)
 
 
-@app.get("/api/account/integration", response_model=AccountIntegrationResponse)
+@app.get(f"{API_PREFIX}/account/integration", response_model=AccountIntegrationResponse)
 async def get_account_integration(current_user: User = Depends(get_current_user)):
     return {
-        "has_api_key": bool(current_user.voice_api_key_encrypted),
+        "has_api_key": bool(current_user.voice_api_key_encrypted or VOICE_API_KEY),
         "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
     }
 
 
-@app.patch("/api/account/integration", response_model=AccountIntegrationResponse)
+@app.patch(f"{API_PREFIX}/account/integration", response_model=AccountIntegrationResponse)
 async def update_account_integration(
     payload: AccountIntegrationRequest,
     current_user: User = Depends(get_current_user),
@@ -311,18 +320,28 @@ async def update_account_integration(
     db.refresh(current_user)
 
     return {
-        "has_api_key": bool(current_user.voice_api_key_encrypted),
+        "has_api_key": bool(current_user.voice_api_key_encrypted or VOICE_API_KEY),
         "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
     }
 
 
 def get_voice_api_config(user: User) -> tuple[str, str]:
-    if not user.voice_api_key_encrypted:
+    token = (
+        decrypt_secret(user.voice_api_key_encrypted)
+        if user.voice_api_key_encrypted
+        else VOICE_API_KEY
+    )
+    if not token:
         raise HTTPException(
             status_code=400,
-            detail="Tai khoan chua cau hinh khoa ket noi LinhVoice",
+            detail="VOICE_API_KEY chua duoc cau hinh",
         )
-    return decrypt_secret(user.voice_api_key_encrypted), (user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL).rstrip("/")
+
+    base_url = user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL
+    if not base_url:
+        raise HTTPException(status_code=500, detail="VOICE_API_BASE_URL chua duoc cau hinh")
+
+    return token, base_url.rstrip("/")
 
 
 async def voice_api_get(user: User, path: str, params: dict[str, Any] | None = None) -> Any:
@@ -588,7 +607,7 @@ def normalize_file(file: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@app.get("/api/voice/assistants")
+@app.get(f"{API_PREFIX}/voice/assistants")
 async def list_voice_assistants(
     limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
@@ -597,7 +616,7 @@ async def list_voice_assistants(
     return [normalize_assistant(assistant) for assistant in assistants]
 
 
-@app.get("/api/voice/calls")
+@app.get(f"{API_PREFIX}/voice/calls")
 async def list_voice_calls(
     limit: int = Query(50, ge=1, le=1000),
     assistant_id: str | None = Query(default=None, alias="assistantId"),
@@ -618,13 +637,13 @@ async def list_voice_calls(
     return [normalize_call(call) for call in calls]
 
 
-@app.get("/api/voice/calls/{call_id}")
+@app.get(f"{API_PREFIX}/voice/calls/{{call_id}}")
 async def get_voice_call(call_id: str, current_user: User = Depends(get_current_user)):
     call = await voice_api_get(current_user, f"/call/{call_id}")
     return normalize_call(call)
 
 
-@app.get("/api/voice/phone-numbers")
+@app.get(f"{API_PREFIX}/voice/phone-numbers")
 async def list_voice_phone_numbers(
     limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
@@ -633,13 +652,13 @@ async def list_voice_phone_numbers(
     return [normalize_phone_number(phone_number) for phone_number in phone_numbers]
 
 
-@app.get("/api/voice/files")
+@app.get(f"{API_PREFIX}/voice/files")
 async def list_voice_files(current_user: User = Depends(get_current_user)):
     files = await voice_api_get(current_user, "/file")
     return [normalize_file(file) for file in files]
 
 
-@app.post("/api/voice/files")
+@app.post(f"{API_PREFIX}/voice/files")
 async def upload_voice_file(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -648,7 +667,7 @@ async def upload_voice_file(
     return normalize_file(uploaded_file)
 
 
-@app.patch("/api/voice/assistants/{assistant_id}")
+@app.patch(f"{API_PREFIX}/voice/assistants/{{assistant_id}}")
 async def update_voice_assistant(
     assistant_id: str,
     payload: dict[str, Any],
@@ -672,7 +691,7 @@ async def update_voice_assistant(
     return normalize_assistant(assistant)
 
 
-@app.patch("/api/voice/phone-numbers/{phone_number_id}")
+@app.patch(f"{API_PREFIX}/voice/phone-numbers/{{phone_number_id}}")
 async def update_voice_phone_number(
     phone_number_id: str,
     payload: dict[str, Any],
@@ -688,7 +707,7 @@ async def update_voice_phone_number(
     return normalize_phone_number(phone_number)
 
 
-@app.get("/api/voice/dashboard")
+@app.get(f"{API_PREFIX}/voice/dashboard")
 async def get_voice_dashboard(
     limit: int = Query(50, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
@@ -732,40 +751,3 @@ async def get_voice_dashboard(
         "phoneNumbers": phone_numbers,
         "files": files,
     }
-
-
-@app.get("/api/signed-url")
-async def get_signed_url():
-    """
-    Lấy signed WebSocket URL từ ElevenLabs API.
-    Frontend sẽ dùng URL này để kết nối trực tiếp tới ElevenLabs agent
-    mà không cần expose API key.
-    """
-    if not ELEVENLABS_API_KEY or not AGENT_ID:
-        raise HTTPException(
-            status_code=500,
-            detail="ELEVENLABS_API_KEY hoặc AGENT_ID chưa được cấu hình trong .env",
-        )
-
-    url = f"https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id={AGENT_ID}"
-
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            response = await client.get(
-                url,
-                headers={"xi-api-key": ELEVENLABS_API_KEY},
-            )
-        except httpx.RequestError as e:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Không thể kết nối tới ElevenLabs API: {str(e)}",
-            )
-
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=response.status_code,
-            detail=f"ElevenLabs API lỗi: {response.text}",
-        )
-
-    data = response.json()
-    return {"signed_url": data.get("signed_url")}

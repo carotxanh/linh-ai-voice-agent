@@ -30,7 +30,6 @@ export default function Settings() {
   const [connectionKey, setConnectionKey] = useState('')
   const [assistants, setAssistants] = useState([])
   const [phoneNumbers, setPhoneNumbers] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
@@ -42,7 +41,6 @@ export default function Settings() {
   ]
 
   const loadSettingsData = async () => {
-    setIsLoading(true)
     setLoadError('')
 
     try {
@@ -69,8 +67,6 @@ export default function Settings() {
       setAssistants([])
       setPhoneNumbers([])
       setLoadError(error.message)
-    } finally {
-      setIsLoading(false)
     }
   }
 
