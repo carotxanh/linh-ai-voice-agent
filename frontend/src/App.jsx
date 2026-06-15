@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Navbar from './components/Navbar'
 import VideoBackground from './components/VideoBackground'
 import LoginModal from './components/LoginModal'
+import ContactLeadModal from './components/ContactLeadModal'
 import { scenes } from './data/scenes'
 import CTAScene from './sections/CTAScene'
 import HeroScene from './sections/HeroScene'
@@ -18,8 +19,10 @@ function App() {
   const activeSceneRef = useRef(0)
   const [activeScene, setActiveScene] = useState(0)
   const [showLogin, setShowLogin] = useState(false)
+  const [showContact, setShowContact] = useState(false)
 
   const openAuth = () => setShowLogin(true)
+  const openContact = () => setShowContact(true)
 
   const goToScene = useCallback((nextIndex) => {
     if (nextIndex < 0 || nextIndex >= scenes.length) return
@@ -81,7 +84,7 @@ function App() {
     >
       <VideoBackground mood={scenes[activeScene].mood} sceneIndex={activeScene} />
 
-      <Navbar activeScene={activeScene} onNavigate={goToScene} onCta={openAuth} />
+      <Navbar activeScene={activeScene} onNavigate={goToScene} onCta={openContact} />
 
       <main className="scene-canvas">
         {sceneComponents.map((SceneComponent, index) => (
@@ -92,12 +95,13 @@ function App() {
             }}
             className="scene-page"
           >
-            <SceneComponent onCta={openAuth} />
+            <SceneComponent onCta={openContact} onAuth={openAuth} />
           </div>
         ))}
       </main>
 
       <LoginModal show={showLogin} onClose={() => setShowLogin(false)} />
+      <ContactLeadModal show={showContact} onClose={() => setShowContact(false)} />
     </div>
   )
 }

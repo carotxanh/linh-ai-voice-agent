@@ -33,6 +33,14 @@ JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 DATA_ENCRYPTION_KEY=paste_generated_fernet_key_here
 VOICE_API_BASE_URL=https://api.vapi.ai
+CONTACT_EMAIL_RECIPIENT=linhvoice29@gmail.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=<smtp_account_email>
+SMTP_PASSWORD=<smtp_app_password>
+SMTP_FROM_EMAIL=<smtp_account_email>
+SMTP_USE_TLS=true
+SMTP_USE_SSL=false
 ```
 
 Generate `DATA_ENCRYPTION_KEY`:

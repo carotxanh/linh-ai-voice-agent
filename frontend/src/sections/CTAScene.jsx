@@ -1,5 +1,4 @@
 import { motion as Motion } from 'framer-motion'
-import { IconCall, IconChart, IconShield } from '../components/Icons'
 import SceneWrapper from '../components/SceneWrapper'
 import { fadeUp } from '../data/animations'
 
@@ -77,18 +76,6 @@ export default function CTAScene({ onCta }) {
               <span>+</span>
             </button>
           ))}
-        </Motion.div>
-
-        <Motion.div variants={fadeUp} className="final-cta-band">
-          <div>
-            <span><IconShield /> Không cần tuyển thêm ca trực</span>
-            <h3>Trợ lý AI sẵn sàng trở thành tổng đài viên đáng tin cậy của bạn</h3>
-          </div>
-          <Motion.button className="neon-button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} onClick={onCta}>
-            <IconCall />
-            Bắt đầu demo
-          </Motion.button>
-          <span className="band-metric"><IconChart /> 24/7</span>
         </Motion.div>
       </div>
     </SceneWrapper>

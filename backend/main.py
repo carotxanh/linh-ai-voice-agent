@@ -1,5 +1,10 @@
 import os
+import re
+import smtplib
+import ssl
+import logging
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from time import perf_counter
 from typing import Any
 from urllib.parse import urlparse
@@ -13,11 +18,13 @@ from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine, text
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
+
+logger = logging.getLogger("linh-ai-backend")
 
 API_PREFIX = os.getenv("API_PREFIX", "/api").strip()
 API_PREFIX = f"/{API_PREFIX.strip('/')}" if API_PREFIX.strip("/") else ""
@@ -34,6 +41,14 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
 DATA_ENCRYPTION_KEY = os.getenv("DATA_ENCRYPTION_KEY")
+CONTACT_EMAIL_RECIPIENT = os.getenv("CONTACT_EMAIL_RECIPIENT", "linhvoice29@gmail.com")
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL") or SMTP_USERNAME
+SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").lower() == "true"
+SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 try:
     fernet = Fernet(DATA_ENCRYPTION_KEY.encode("utf-8")) if DATA_ENCRYPTION_KEY else None
 except ValueError:
@@ -73,6 +88,21 @@ class User(Base):
     )
 
 
+class ContactLead(Base):
+    __tablename__ = "contact_leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String(255), nullable=False)
+    email = Column(String(255), index=True, nullable=False)
+    phone = Column(String(50), nullable=False)
+    company_name = Column(String(255), nullable=False)
+    business_need = Column(String(500), nullable=False)
+    preferred_contact_time = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    email_sent = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
 class RegisterRequest(BaseModel):
     email: str
     password: str
@@ -105,6 +135,22 @@ class AccountIntegrationRequest(BaseModel):
 class AccountIntegrationResponse(BaseModel):
     has_api_key: bool
     api_base_url: str
+
+
+class ContactLeadRequest(BaseModel):
+    full_name: str
+    email: str
+    phone: str
+    company_name: str
+    business_need: str
+    preferred_contact_time: str
+    message: str
+
+
+class ContactLeadResponse(BaseModel):
+    message: str
+    lead_id: int
+    email_sent: bool
 
 
 def ensure_user_columns():
@@ -167,8 +213,125 @@ def get_db():
         db.close()
 
 
+@app.post(f"{API_PREFIX}/contact-leads", response_model=ContactLeadResponse)
+async def create_contact_lead(payload: ContactLeadRequest, db: Session = Depends(get_db)):
+    lead = ContactLead(
+        full_name=clean_required_text(payload.full_name, "Ho ten"),
+        email=validate_public_email(payload.email),
+        phone=validate_phone(payload.phone),
+        company_name=clean_required_text(payload.company_name, "Ten doanh nghiep"),
+        business_need=clean_required_text(payload.business_need, "Muc tieu trien khai", min_length=5, max_length=500),
+        preferred_contact_time=clean_required_text(payload.preferred_contact_time, "Nganh nghe", max_length=255),
+        message=clean_required_text(payload.message, "Nhu cau chinh", min_length=10, max_length=3000),
+    )
+
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+
+    email_sent = send_contact_email(lead)
+    if email_sent:
+        lead.email_sent = True
+        db.add(lead)
+        db.commit()
+
+    return {
+        "message": "Da nhan thong tin tu van",
+        "lead_id": lead.id,
+        "email_sent": email_sent,
+    }
+
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def clean_required_text(value: str, field_name: str, min_length: int = 2, max_length: int = 255) -> str:
+    cleaned = " ".join((value or "").split())
+    if len(cleaned) < min_length:
+        raise HTTPException(status_code=400, detail=f"{field_name} khong hop le")
+    if len(cleaned) > max_length:
+        raise HTTPException(status_code=400, detail=f"{field_name} qua dai")
+    return cleaned
+
+
+def validate_public_email(email: str) -> str:
+    cleaned = normalize_email(email)
+    if len(cleaned) > 255 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", cleaned):
+        raise HTTPException(status_code=400, detail="Email khong hop le")
+    return cleaned
+
+
+def validate_phone(phone: str) -> str:
+    cleaned = re.sub(r"\s+", "", phone or "")
+    if not re.fullmatch(r"\+?[0-9().-]{8,20}", cleaned):
+        raise HTTPException(status_code=400, detail="So dien thoai khong hop le")
+    return cleaned
+
+
+def send_contact_email(lead: ContactLead) -> bool:
+    if not (SMTP_HOST and SMTP_FROM_EMAIL and CONTACT_EMAIL_RECIPIENT):
+        logger.warning(
+            "Contact lead %s was saved but email was not sent because SMTP is not fully configured",
+            lead.id,
+        )
+        return False
+
+    email = EmailMessage()
+    email["Subject"] = f"Lead tu van moi tu {lead.full_name}"
+    email["From"] = SMTP_FROM_EMAIL
+    email["To"] = CONTACT_EMAIL_RECIPIENT
+    email["Reply-To"] = lead.email
+    email.set_content(
+        "\n".join(
+            [
+                "Co khach hang de lai thong tin tu landing page LinhVoice.",
+                "",
+                f"Ho ten: {lead.full_name}",
+                f"Email: {lead.email}",
+                f"So dien thoai: {lead.phone}",
+                f"Doanh nghiep: {lead.company_name}",
+                f"Muc tieu trien khai: {lead.business_need}",
+                f"Nganh nghe: {lead.preferred_contact_time}",
+                "",
+                "Nhu cau chinh:",
+                lead.message,
+                "",
+                f"Lead ID: {lead.id}",
+                f"Thoi gian tao: {lead.created_at.isoformat()}",
+            ]
+        )
+    )
+
+    try:
+        if SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+                if SMTP_USERNAME and SMTP_PASSWORD:
+                    server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(email)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+                if SMTP_USE_TLS:
+                    server.starttls(context=ssl.create_default_context())
+                if SMTP_USERNAME and SMTP_PASSWORD:
+                    server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(email)
+    except smtplib.SMTPAuthenticationError:
+        logger.warning(
+            "Contact lead %s was saved but Gmail SMTP authentication failed for %s",
+            lead.id,
+            SMTP_USERNAME,
+        )
+        return False
+    except smtplib.SMTPException as e:
+        logger.warning("Contact lead %s was saved but SMTP send failed: %s", lead.id, e)
+        return False
+    except OSError as e:
+        logger.warning("Contact lead %s was saved but SMTP connection failed: %s", lead.id, e)
+        return False
+
+    logger.info("Contact lead %s email notification sent to %s", lead.id, CONTACT_EMAIL_RECIPIENT)
+    return True
 
 
 def hash_password(password: str) -> str:

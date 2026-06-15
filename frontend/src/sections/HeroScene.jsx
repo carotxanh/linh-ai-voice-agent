@@ -3,7 +3,7 @@ import AnimatedText from '../components/AnimatedText'
 import SceneWrapper from '../components/SceneWrapper'
 import { fadeUp } from '../data/animations'
 
-export default function HeroScene({ onCta }) {
+export default function HeroScene({ onCta, onAuth }) {
   const badges = ['Trực 24/7', 'Giọng Việt tự nhiên', 'Chuyển người thật khi cần']
 
   return (
@@ -25,7 +25,7 @@ export default function HeroScene({ onCta }) {
             <Motion.button className="neon-button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} onClick={onCta}>
               Đặt lịch demo
             </Motion.button>
-            <Motion.button className="ghost-button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} onClick={onCta}>
+            <Motion.button className="ghost-button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} onClick={onAuth}>
               Xem luồng hoạt động
             </Motion.button>
           </Motion.div>
