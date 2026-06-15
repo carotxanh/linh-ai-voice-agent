@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion as Motion } from 'framer-motion'
 import SceneWrapper from '../components/SceneWrapper'
 import { fadeUp } from '../data/animations'
@@ -27,13 +28,27 @@ const plans = [
 ]
 
 const faqs = [
-  'AI có hỗ trợ tiếng Việt tự nhiên không?',
-  'Làm thế nào để nạp dữ liệu cho AI?',
-  'Có chuyển cuộc gọi cho người thật được không?',
-  'Báo cáo sau cuộc gọi gồm những gì?',
+  {
+    question: 'AI có hỗ trợ tiếng Việt tự nhiên không?',
+    answer: 'Có. LinhVoice được thiết kế cho hội thoại tiếng Việt, có thể xử lý cách nói tự nhiên, ngắt câu, xác nhận thông tin và phản hồi theo kịch bản của doanh nghiệp.',
+  },
+  {
+    question: 'Làm thế nào để nạp dữ liệu cho AI?',
+    answer: 'Bạn có thể tải lên tài liệu, FAQ, bảng giá, chính sách hoặc quy trình bán hàng. Đội triển khai sẽ chuẩn hóa dữ liệu và kiểm thử để AI trả lời nhất quán.',
+  },
+  {
+    question: 'Có chuyển cuộc gọi cho người thật được không?',
+    answer: 'Có. Khi khách cần hỗ trợ chuyên sâu hoặc gặp tình huống ngoài kịch bản, AI có thể ghi nhận ngữ cảnh và chuyển tiếp cho nhân sự phụ trách.',
+  },
+  {
+    question: 'Báo cáo sau cuộc gọi gồm những gì?',
+    answer: 'Báo cáo có thể gồm tóm tắt nội dung, trạng thái khách hàng, nhu cầu chính, kết quả cuộc gọi, thời lượng, chi phí và transcript để đội ngũ theo dõi lại.',
+  },
 ]
 
 export default function CTAScene({ onCta }) {
+  const [openFaq, setOpenFaq] = useState(0)
+
   return (
     <SceneWrapper className="justify-center text-center">
       <div className="pricing-scene mx-auto w-full max-w-6xl">
@@ -70,12 +85,26 @@ export default function CTAScene({ onCta }) {
           Câu hỏi thường gặp
         </Motion.h3>
         <Motion.div variants={fadeUp} className="faq-list">
-          {faqs.map((faq) => (
-            <button key={faq} type="button">
-              {faq}
-              <span>+</span>
-            </button>
-          ))}
+          {faqs.map((faq, index) => {
+            const isOpen = openFaq === index
+
+            return (
+              <div key={faq.question} className={`faq-item ${isOpen ? 'open' : ''}`}>
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${index}`}
+                  onClick={() => setOpenFaq((current) => (current === index ? -1 : index))}
+                >
+                  {faq.question}
+                  <span aria-hidden="true">{isOpen ? '−' : '+'}</span>
+                </button>
+                <div id={`faq-answer-${index}`} className="faq-answer" hidden={!isOpen}>
+                  <p>{faq.answer}</p>
+                </div>
+              </div>
+            )
+          })}
         </Motion.div>
       </div>
     </SceneWrapper>

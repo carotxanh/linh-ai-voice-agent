@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import RippleText from '../components/RippleText'
-import { getVoiceDashboard } from '../services/voice'
+import { getAccountIntegration, getVoiceDashboard } from '../services/voice'
 import './Portal.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
@@ -68,12 +68,23 @@ export default function Portal() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [dataSource, setDataSource] = useState('idle')
+  const [needsConnection, setNeedsConnection] = useState(false)
 
   const loadDashboard = async () => {
     setIsLoading(true)
     setLoadError('')
+    setNeedsConnection(false)
 
     try {
+      const integration = await getAccountIntegration()
+      if (!integration.has_api_key || !integration.api_base_url) {
+        setDashboard(emptyDashboard)
+        setDataSource('error')
+        setNeedsConnection(true)
+        setLoadError(integration.message || 'Tài khoản chưa có khóa kết nối hoặc địa chỉ API thoại. Vui lòng cấu hình trong Thiết lập')
+        return
+      }
+
       const data = await getVoiceDashboard(50)
       setDashboard(data)
       setDataSource('live')
@@ -142,7 +153,12 @@ export default function Portal() {
         {loadError && (
           <div className="api-alert">
             <MIcon name="info" size={18} />
-            Không thể tải dữ liệu tổng quan: {loadError}.
+            <span>Không thể tải dữ liệu tổng quan: {loadError}.</span>
+            {needsConnection && (
+              <button type="button" className="api-alert-action" onClick={() => navigate('/settings')}>
+                Mở thiết lập
+              </button>
+            )}
           </div>
         )}
 

@@ -26,7 +26,7 @@ function MIcon({ name, className = '', filled = false, size = 24 }) {
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState('connection')
-  const [connection, setConnection] = useState({ hasApiKey: false, apiBaseUrl: '' })
+  const [connection, setConnection] = useState({ hasApiKey: false, apiBaseUrl: '', apiKeyStatus: 'missing', message: '' })
   const [connectionKey, setConnectionKey] = useState('')
   const [assistants, setAssistants] = useState([])
   const [phoneNumbers, setPhoneNumbers] = useState([])
@@ -48,8 +48,13 @@ export default function Settings() {
       const nextConnection = {
         hasApiKey: Boolean(integration.has_api_key),
         apiBaseUrl: integration.api_base_url || '',
+        apiKeyStatus: integration.api_key_status || 'missing',
+        message: integration.message || '',
       }
       setConnection(nextConnection)
+      if (nextConnection.message) {
+        setLoadError(nextConnection.message)
+      }
 
       if (!nextConnection.hasApiKey) {
         setAssistants([])
@@ -80,11 +85,14 @@ export default function Settings() {
 
     try {
       const updatedConnection = await updateAccountIntegration({
-        api_key: connectionKey,
+        api_key: connectionKey.trim() || undefined,
+        api_base_url: connection.apiBaseUrl.trim(),
       })
       setConnection({
         hasApiKey: Boolean(updatedConnection.has_api_key),
         apiBaseUrl: updatedConnection.api_base_url || '',
+        apiKeyStatus: updatedConnection.api_key_status || 'missing',
+        message: updatedConnection.message || '',
       })
       setConnectionKey('')
       setSaveMessage('Đã lưu kết nối cho tài khoản này.')
@@ -200,6 +208,9 @@ export default function Settings() {
                     <span className={`data-source-badge ${connection.hasApiKey ? 'connected' : ''}`}>
                       {connection.hasApiKey ? 'Đã kết nối' : 'Chưa kết nối'}
                     </span>
+                    {connection.apiKeyStatus === 'unreadable' && (
+                      <span className="data-source-badge warning">Cần nhập lại khóa</span>
+                    )}
                   </div>
 
                   <div className="setting-item">
@@ -218,11 +229,27 @@ export default function Settings() {
                       <button
                         className="btn-save"
                         onClick={handleSaveConnection}
-                        disabled={isSaving || connectionKey.trim().length < 12}
+                        disabled={isSaving || (!connection.hasApiKey && connectionKey.trim().length < 12) || !connection.apiBaseUrl.trim()}
                       >
                         <MIcon name="save" size={18} />
                         {isSaving ? 'Đang lưu' : 'Lưu kết nối'}
                       </button>
+                    </div>
+                  </div>
+
+                  <div className="setting-item">
+                    <div className="setting-info">
+                      <h3>Địa chỉ API thoại</h3>
+                      <p>Base URL của dịch vụ thoại, ví dụ https://api.vapi.ai. Cần có giá trị này để tải cuộc gọi, trợ lý AI và tài liệu.</p>
+                    </div>
+                    <div className="setting-stack">
+                      <input
+                        type="url"
+                        className="setting-input"
+                        value={connection.apiBaseUrl}
+                        onChange={(event) => setConnection((current) => ({ ...current, apiBaseUrl: event.target.value }))}
+                        placeholder="https://api.vapi.ai"
+                      />
                     </div>
                   </div>
                 </div>

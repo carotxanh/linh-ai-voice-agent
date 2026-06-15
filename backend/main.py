@@ -135,6 +135,8 @@ class AccountIntegrationRequest(BaseModel):
 class AccountIntegrationResponse(BaseModel):
     has_api_key: bool
     api_base_url: str
+    api_key_status: str = "missing"
+    message: str | None = None
 
 
 class ContactLeadRequest(BaseModel):
@@ -360,7 +362,19 @@ def decrypt_secret(value: str) -> str:
     try:
         return fernet.decrypt(value.encode("utf-8")).decode("utf-8")
     except InvalidToken:
-        raise HTTPException(status_code=500, detail="Khoa ket noi da luu khong doc duoc")
+        raise HTTPException(status_code=400, detail="Khoa ket noi da luu khong doc duoc. Vui long nhap lai khoa ket noi")
+
+
+def stored_secret_status(value: str | None) -> tuple[bool, str, str | None]:
+    if not value:
+        return False, "missing", None
+    if not fernet:
+        return False, "unreadable", "May chu chua co DATA_ENCRYPTION_KEY hop le de doc khoa ket noi"
+    try:
+        fernet.decrypt(value.encode("utf-8"))
+    except InvalidToken:
+        return False, "unreadable", "Khoa ket noi da luu khong doc duoc. Vui long nhap lai khoa ket noi"
+    return True, "valid", None
 
 
 def serialize_user(user: User) -> dict[str, Any]:
@@ -453,9 +467,12 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 @app.get(f"{API_PREFIX}/account/integration", response_model=AccountIntegrationResponse)
 async def get_account_integration(current_user: User = Depends(get_current_user)):
+    has_api_key, api_key_status, message = stored_secret_status(current_user.voice_api_key_encrypted)
     return {
-        "has_api_key": bool(current_user.voice_api_key_encrypted),
-        "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
+        "has_api_key": has_api_key,
+        "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL or "",
+        "api_key_status": api_key_status,
+        "message": message,
     }
 
 
@@ -465,7 +482,9 @@ async def update_account_integration(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    api_base_url = (payload.api_base_url or current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL).strip()
+    api_base_url = (payload.api_base_url or current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL or "").strip()
+    if not api_base_url:
+        raise HTTPException(status_code=400, detail="Vui long cau hinh dia chi API thoai")
     if not api_base_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="Dia chi ket noi khong hop le")
 
@@ -481,9 +500,12 @@ async def update_account_integration(
     db.commit()
     db.refresh(current_user)
 
+    has_api_key, api_key_status, message = stored_secret_status(current_user.voice_api_key_encrypted)
     return {
-        "has_api_key": bool(current_user.voice_api_key_encrypted),
-        "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL,
+        "has_api_key": has_api_key,
+        "api_base_url": current_user.voice_api_base_url or DEFAULT_VOICE_API_BASE_URL or "",
+        "api_key_status": api_key_status,
+        "message": message,
     }
 
 

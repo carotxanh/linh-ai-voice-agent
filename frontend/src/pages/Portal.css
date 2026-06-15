@@ -59,6 +59,7 @@
 .api-alert {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
   margin-bottom: 1rem;
   border: 1px solid rgba(251, 113, 133, 0.24);
@@ -67,6 +68,25 @@
   color: #fecdd3;
   background: rgba(251, 113, 133, 0.1);
   font-size: 0.9rem;
+}
+
+.api-alert-action {
+  margin-left: auto;
+  border: 1px solid rgba(251, 113, 133, 0.32);
+  border-radius: 999px;
+  background: rgba(251, 113, 133, 0.14);
+  color: #ffffff;
+  padding: 0.45rem 0.82rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.api-alert-action:hover,
+.api-alert-action:focus-visible {
+  border-color: rgba(34, 211, 238, 0.44);
+  background: rgba(34, 211, 238, 0.14);
+  outline: none;
 }
 
 .portal-page .btn-secondary {

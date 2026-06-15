@@ -164,6 +164,12 @@
     background: rgba(34, 211, 238, 0.12);
 }
 
+.data-source-badge.warning {
+    border-color: rgba(251, 191, 36, 0.42);
+    color: #fde68a;
+    background: rgba(251, 191, 36, 0.12);
+}
+
 .api-alert {
     display: flex;
     align-items: center;

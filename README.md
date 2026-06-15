@@ -25,10 +25,14 @@ Each LinhVoice account stores its own encrypted voice API key in the database. D
 
 Create `backend/.env` from `backend/.env.example`:
 
+```powershell
+copy backend\.env.example backend\.env
+```
+
 ```env
 API_PREFIX=/api
 DATABASE_URL=postgresql+psycopg2://<SUPABASE_DB_USER>:<SUPABASE_DB_PASSWORD>@<SUPABASE_POOLER_HOST>:5432/postgres
-JWT_SECRET_KEY=replace_with_a_long_random_secret
+JWT_SECRET_KEY=replace_with_a_long_random_secret_at_least_32_chars
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 DATA_ENCRYPTION_KEY=paste_generated_fernet_key_here
@@ -48,6 +52,8 @@ Generate `DATA_ENCRYPTION_KEY`:
 ```powershell
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
+
+Keep `DATA_ENCRYPTION_KEY` stable after deployment. Existing per-account voice API keys are encrypted with this value; changing it makes stored keys unreadable and users must re-enter their voice API key.
 
 `DATABASE_URL` should come from Supabase. The backend automatically enables SSL for Supabase pooler hosts.
 
@@ -99,6 +105,8 @@ The script asks for password and voice API key using hidden prompts. The voice k
 The recommended VPS flow is to build Docker images locally, export them to a `.tar`, upload only the tar + compose file + `.env`, then run the images on the VPS.
 
 This avoids sending source code, `node_modules`, build contexts, or dependency install work to the VPS.
+
+`backend/.env` is loaded at container runtime through Compose and is excluded from the Docker build context by `backend/.dockerignore`, so secrets are not baked into the image.
 
 ## First Deploy To VPS
 
@@ -156,6 +164,15 @@ docker build -t linhvoice-backend:latest .\backend
 docker build -t linhvoice-frontend:latest .\frontend
 
 docker save linhvoice-backend:latest linhvoice-frontend:latest -o linhvoice-images.tar
+```
+
+Optional local smoke test before exporting:
+
+```powershell
+docker compose up -d --build
+curl http://127.0.0.1:8000/api/health
+curl http://127.0.0.1:8080
+docker compose down
 ```
 
 ### 5. Upload Minimal Files

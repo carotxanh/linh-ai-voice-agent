@@ -23,6 +23,10 @@ function App() {
 
   const openAuth = () => setShowLogin(true)
   const openContact = () => setShowContact(true)
+  const switchContactToAuth = () => {
+    setShowContact(false)
+    setShowLogin(true)
+  }
 
   const goToScene = useCallback((nextIndex) => {
     if (nextIndex < 0 || nextIndex >= scenes.length) return
@@ -101,7 +105,7 @@ function App() {
       </main>
 
       <LoginModal show={showLogin} onClose={() => setShowLogin(false)} />
-      <ContactLeadModal show={showContact} onClose={() => setShowContact(false)} />
+      <ContactLeadModal show={showContact} onClose={() => setShowContact(false)} onLogin={switchContactToAuth} />
     </div>
   )
 }

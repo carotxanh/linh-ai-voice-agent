@@ -48,7 +48,6 @@ function FieldIcon({ type }) {
     phone: 'M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2c.3-.3.8-.4 1.2-.3 1 .3 2 .4 3 .4.7 0 1.2.5 1.2 1.2V20c0 .7-.5 1.2-1.2 1.2C10 21.2 2.8 14 2.8 5.2 2.8 4.5 3.3 4 4 4h3.5c.7 0 1.2.5 1.2 1.2 0 1 .1 2 .4 3 .1.4 0 .9-.3 1.2l-2.2 2.4Z',
     building: 'M4 21V5h10v16M14 9h6v12M7 8h2M7 12h2M7 16h2M17 13h1M17 17h1',
     briefcase: 'M9 7V5h6v2M4 8h16v12H4V8Zm0 5h16',
-    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v5l3 2',
     edit: 'M4 20h4l11-11-4-4L4 16v4Zm12-16 4 4',
   }
 
@@ -56,6 +55,45 @@ function FieldIcon({ type }) {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d={icons[type]} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+function CustomSelect({ id, icon, value, placeholder, options, error, isOpen, onToggle, onSelect, onClose }) {
+  return (
+    <div
+      className={`contact-input-wrap has-select custom-select-wrap ${isOpen ? 'open' : ''} ${error ? 'input-error' : ''}`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) onClose()
+      }}
+    >
+      <FieldIcon type={icon} />
+      <button
+        type="button"
+        className={`custom-select-trigger ${value ? '' : 'placeholder'}`}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={`${id}-listbox`}
+        onClick={onToggle}
+      >
+        <span>{value || placeholder}</span>
+      </button>
+      {isOpen && (
+        <div id={`${id}-listbox`} className="custom-select-menu" role="listbox">
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={value === option}
+              className={value === option ? 'selected' : ''}
+              onClick={() => onSelect(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -68,11 +106,12 @@ const trackLeadFormSubmit = () => {
   })
 }
 
-export default function ContactLeadModal({ show, onClose }) {
+export default function ContactLeadModal({ show, onClose, onLogin }) {
   const [formData, setFormData] = useState(initialFormData)
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState({ type: '', message: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activeSelect, setActiveSelect] = useState('')
 
   useEffect(() => {
     if (!show) return undefined
@@ -116,6 +155,11 @@ export default function ContactLeadModal({ show, onClose }) {
     setStatus({ type: '', message: '' })
   }
 
+  const selectField = (field, value) => {
+    updateField(field, value)
+    setActiveSelect('')
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!validateForm()) return
@@ -136,11 +180,12 @@ export default function ContactLeadModal({ show, onClose }) {
 
       trackLeadFormSubmit()
       setFormData(initialFormData)
+      setActiveSelect('')
       setStatus({
         type: 'success',
         message: result.email_sent
-          ? 'Đã nhận thông tin và gửi email cho đội LinhVoice.'
-          : 'Đã lưu thông tin. Đội LinhVoice sẽ kiểm tra và liên hệ lại.',
+          ? 'Đã nhận thông tin và gửi email cho đội Linh.Voice.'
+          : 'Đã lưu thông tin. Đội Linh.Voice sẽ kiểm tra và liên hệ lại.',
       })
     } catch (error) {
       setStatus({
@@ -181,7 +226,7 @@ export default function ContactLeadModal({ show, onClose }) {
           <h2>
             Để lại thông tin, chúng tôi sẽ <span>trao đổi với bạn</span>
           </h2>
-          <p>LinhVoice sẽ dựa trên nhu cầu, quy mô và ngành nghề để tư vấn demo phù hợp.</p>
+          <p>Linh.Voice sẽ dựa trên nhu cầu, quy mô và ngành nghề để tư vấn demo phù hợp.</p>
 
           <div className="contact-benefit-grid">
             <div>
@@ -250,29 +295,35 @@ export default function ContactLeadModal({ show, onClose }) {
 
             <label>
               <span>Mục tiêu triển khai *</span>
-              <div className={`contact-input-wrap ${errors.businessNeed ? 'input-error' : ''}`}>
-                <FieldIcon type="briefcase" />
-                <select value={formData.businessNeed} onChange={(event) => updateField('businessNeed', event.target.value)}>
-                  <option value="">CSKH, xác nhận lịch, bán hàng...</option>
-                  {needOptions.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                id="business-need"
+                icon="briefcase"
+                value={formData.businessNeed}
+                placeholder="CSKH, xác nhận lịch, bán hàng..."
+                options={needOptions}
+                error={errors.businessNeed}
+                isOpen={activeSelect === 'businessNeed'}
+                onToggle={() => setActiveSelect((current) => (current === 'businessNeed' ? '' : 'businessNeed'))}
+                onSelect={(option) => selectField('businessNeed', option)}
+                onClose={() => setActiveSelect('')}
+              />
               {errors.businessNeed && <small>{errors.businessNeed}</small>}
             </label>
 
             <label>
               <span>Ngành nghề *</span>
-              <div className={`contact-input-wrap ${errors.preferredContactTime ? 'input-error' : ''}`}>
-                <FieldIcon type="building" />
-                <select value={formData.preferredContactTime} onChange={(event) => updateField('preferredContactTime', event.target.value)}>
-                  <option value="">Chọn ngành nghề của bạn</option>
-                  {industryOptions.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                id="industry"
+                icon="building"
+                value={formData.preferredContactTime}
+                placeholder="Chọn ngành nghề của bạn"
+                options={industryOptions}
+                error={errors.preferredContactTime}
+                isOpen={activeSelect === 'preferredContactTime'}
+                onToggle={() => setActiveSelect((current) => (current === 'preferredContactTime' ? '' : 'preferredContactTime'))}
+                onSelect={(option) => selectField('preferredContactTime', option)}
+                onClose={() => setActiveSelect('')}
+              />
               {errors.preferredContactTime && <small>{errors.preferredContactTime}</small>}
             </label>
 
@@ -280,7 +331,7 @@ export default function ContactLeadModal({ show, onClose }) {
               <span>Nhu cầu chính *</span>
               <div className={`contact-input-wrap textarea ${errors.message ? 'input-error' : ''}`}>
                 <FieldIcon type="edit" />
-                <textarea value={formData.message} onChange={(event) => updateField('message', event.target.value)} rows="4" maxLength="500" placeholder="Chia sẻ nhu cầu chính, số lượng cuộc gọi, quy trình hiện tại hoặc mong muốn của bạn." />
+                <textarea value={formData.message} onChange={(event) => updateField('message', event.target.value)} rows="3" maxLength="500" placeholder="Chia sẻ nhu cầu chính, số lượng cuộc gọi, quy trình hiện tại hoặc mong muốn của bạn." />
                 <em>{formData.message.length}/500</em>
               </div>
               {errors.message && <small>{errors.message}</small>}
@@ -299,6 +350,13 @@ export default function ContactLeadModal({ show, onClose }) {
               </svg>
               {isSubmitting ? 'Đang gửi...' : 'Gửi thông tin'}
             </Motion.button>
+
+            {onLogin && (
+              <div className="contact-login-prompt">
+                <span>Đã có tài khoản?</span>
+                <button type="button" onClick={onLogin}>Đăng nhập</button>
+              </div>
+            )}
           </form>
 
           <div className="contact-hotline">
