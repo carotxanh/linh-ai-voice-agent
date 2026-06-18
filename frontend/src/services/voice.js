@@ -85,3 +85,7 @@ export function updateVoicePhoneNumber(phoneNumberId, payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export function getElevenLabsConversationToken() {
+  return apiFetch('/elevenlabs/conversation-token')
+}

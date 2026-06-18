@@ -82,6 +82,8 @@ Create `frontend/.env` for local dev:
 ```env
 VITE_API_BASE_URL=/api
 VITE_API_PROXY_TARGET=http://127.0.0.1:8000
+ELEVENLABS_API_KEY=<elevenlabs_api_key_for_vite_dev_server_only>
+VITE_ELEVENLABS_AGENT_ID=agent_6801kvbx9e1zew7vbw4x0xz2b1se
 ```
 
 Open:

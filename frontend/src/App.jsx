@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ConversationProvider } from '@elevenlabs/react'
 import Navbar from './components/Navbar'
 import VideoBackground from './components/VideoBackground'
 import LoginModal from './components/LoginModal'
@@ -79,34 +80,36 @@ function App() {
   }, [])
 
   return (
-    <div
-      className="cinema-app"
-      style={{
-        '--scene-index': activeScene,
-        '--scene-direction': 1,
-      }}
-    >
-      <VideoBackground mood={scenes[activeScene].mood} sceneIndex={activeScene} />
+    <ConversationProvider>
+      <div
+        className="cinema-app"
+        style={{
+          '--scene-index': activeScene,
+          '--scene-direction': 1,
+        }}
+      >
+        <VideoBackground mood={scenes[activeScene].mood} sceneIndex={activeScene} />
 
-      <Navbar activeScene={activeScene} onNavigate={goToScene} onCta={openContact} />
+        <Navbar activeScene={activeScene} onNavigate={goToScene} onCta={openContact} />
 
-      <main className="scene-canvas">
-        {sceneComponents.map((SceneComponent, index) => (
-          <div
-            key={scenes[index].id}
-            ref={(node) => {
-              sceneRefs.current[index] = node
-            }}
-            className="scene-page"
-          >
-            <SceneComponent onCta={openContact} onAuth={openAuth} />
-          </div>
-        ))}
-      </main>
+        <main className="scene-canvas">
+          {sceneComponents.map((SceneComponent, index) => (
+            <div
+              key={scenes[index].id}
+              ref={(node) => {
+                sceneRefs.current[index] = node
+              }}
+              className="scene-page"
+            >
+              <SceneComponent onCta={openContact} onAuth={openAuth} />
+            </div>
+          ))}
+        </main>
 
-      <LoginModal show={showLogin} onClose={() => setShowLogin(false)} />
-      <ContactLeadModal show={showContact} onClose={() => setShowContact(false)} onLogin={switchContactToAuth} />
-    </div>
+        <LoginModal show={showLogin} onClose={() => setShowLogin(false)} />
+        <ContactLeadModal show={showContact} onClose={() => setShowContact(false)} onLogin={switchContactToAuth} />
+      </div>
+    </ConversationProvider>
   )
 }
 

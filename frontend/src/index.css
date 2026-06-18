@@ -1480,6 +1480,79 @@ h2.cinema-title {
   line-height: 1.45;
 }
 
+.demo-call {
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  margin-top: 1.05rem;
+}
+
+.demo-call-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: 3.25rem;
+  min-width: min(100%, 15rem);
+  border: 1px solid rgba(125, 211, 252, 0.56);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 22% 20%, rgba(255, 255, 255, 0.24), transparent 26%),
+    linear-gradient(135deg, rgba(14, 165, 233, 0.96), rgba(37, 99, 235, 0.9) 54%, rgba(99, 102, 241, 0.92));
+  color: #ffffff;
+  padding: 0 1.45rem;
+  font-size: 0.92rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 0 34px rgba(14, 165, 233, 0.34),
+    0 0 70px rgba(99, 102, 241, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.demo-call-button:hover {
+  border-color: rgba(186, 230, 253, 0.78);
+  box-shadow:
+    0 0 42px rgba(14, 165, 233, 0.46),
+    0 0 80px rgba(99, 102, 241, 0.28);
+}
+
+.demo-call-button:disabled {
+  cursor: wait;
+  opacity: 0.76;
+}
+
+.demo-call-icon {
+  display: grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.demo-call-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.demo-call-status {
+  max-width: min(100%, 34rem);
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.demo-call-status.connected {
+  color: #a7f3d0;
+}
+
+.demo-call-status.error {
+  color: #fecaca;
+}
+
 .industry-universe > span {
   display: grid;
   min-height: 3rem;
