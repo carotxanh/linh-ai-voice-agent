@@ -122,6 +122,24 @@ function buildTranscriptText(call) {
   return transcriptLines(call).map((line) => `${line.isUser ? 'Khách hàng' : 'LinhVoice'}: ${line.text}`).join('\n')
 }
 
+function csvCell(value) {
+  const text = String(value ?? '').replace(/\r?\n/g, ' ')
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map(csvCell).join(',')).join('\n')
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 export default function CallHistory() {
   const audioRef = useRef(null)
   const [calls, setCalls] = useState([])
@@ -398,6 +416,42 @@ export default function CallHistory() {
     return renderTechnicalTab()
   }
 
+  const handleExportExcel = () => {
+    const headers = [
+      'Ma cuoc goi',
+      'Ket qua',
+      'Trang thai',
+      'LinhVoice',
+      'Khach hang',
+      'So dien thoai',
+      'Tom tat',
+      'Thoi luong',
+      'Chi phi',
+      'Bat dau',
+      'Ket thuc',
+      'Ly do ket thuc',
+    ]
+    const rows = filteredCalls.map((call) => {
+      const outcome = getOutcome(call)
+      return [
+        call.id,
+        outcome.text,
+        getStatusInfo(call.status).text,
+        call.assistantName || 'LinhVoice',
+        call.customerName || '',
+        call.customerNumber || call.phoneNumber || '',
+        call.summary ? vietnamizeSummary(call.summary) : '',
+        call.duration || '',
+        formatCost(call.cost),
+        formatDateTime(call.startedAt || call.timestamp),
+        formatDateTime(call.endedAt),
+        call.endedReason || '',
+      ]
+    })
+    const date = new Date().toISOString().slice(0, 10)
+    downloadCsv(`linhvoice-call-history-${date}.csv`, [headers, ...rows])
+  }
+
   return (
     <DashboardLayout>
       <div className="call-history-page">
@@ -410,6 +464,10 @@ export default function CallHistory() {
             </span>
           </div>
           <div className="page-header-actions">
+            <button className="btn-export" onClick={handleExportExcel} disabled={filteredCalls.length === 0}>
+              <MIcon name="download" size={18} />
+              Xuất Excel
+            </button>
             <button className="btn-refresh" onClick={loadCalls} disabled={isLoading}>
               <MIcon name={isLoading ? 'progress_activity' : 'refresh'} size={18} />
               {isLoading ? 'Đang tải' : 'Làm mới'}

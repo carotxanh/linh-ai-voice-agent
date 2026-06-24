@@ -80,6 +80,33 @@
   transition: all 0.2s;
 }
 
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  color: #a5f3fc;
+  background: rgba(34, 211, 238, 0.1);
+  cursor: pointer;
+  font-weight: 800;
+  transition: all 0.2s;
+}
+
+.btn-export:hover:not(:disabled) {
+  border-color: rgba(34, 211, 238, 0.58);
+  color: #ffffff;
+  background: rgba(34, 211, 238, 0.16);
+  transform: translateY(-1px);
+}
+
+.btn-export:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .btn-refresh:hover:not(:disabled) {
   border-color: rgba(34, 211, 238, 0.42);
   color: #ffffff;
