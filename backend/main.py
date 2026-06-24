@@ -1217,6 +1217,42 @@ async def upload_voice_file(
     return normalize_file(uploaded_file)
 
 
+@app.delete(f"{API_PREFIX}/voice/files/{{source_id}}")
+async def delete_voice_file(
+    source_id: str,
+    knowledge_base_id: str | None = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    resolved_knowledge_base_id = knowledge_base_id
+
+    if not resolved_knowledge_base_id:
+        knowledge_bases = await retell_api_request(current_user, "GET", "/list-knowledge-bases")
+        for knowledge_base in knowledge_bases:
+            for source in knowledge_base.get("knowledge_base_sources") or []:
+                if source.get("source_id") == source_id:
+                    resolved_knowledge_base_id = knowledge_base.get("knowledge_base_id")
+                    break
+            if resolved_knowledge_base_id:
+                break
+
+    if not resolved_knowledge_base_id:
+        raise HTTPException(status_code=404, detail="Khong tim thay knowledge base cua tai lieu nay")
+
+    knowledge_base = await retell_api_request(
+        current_user,
+        "DELETE",
+        f"/delete-knowledge-base-source/{resolved_knowledge_base_id}/source/{source_id}",
+        timeout=60.0,
+    )
+
+    return {
+        "deleted": True,
+        "id": source_id,
+        "knowledgeBaseId": resolved_knowledge_base_id,
+        "files": normalize_knowledge_base_sources(knowledge_base or {}),
+    }
+
+
 @app.patch(f"{API_PREFIX}/voice/assistants/{{assistant_id}}")
 async def update_voice_assistant(
     assistant_id: str,

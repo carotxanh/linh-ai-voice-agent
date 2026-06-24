@@ -64,6 +64,13 @@ export function uploadVoiceFile(file) {
   })
 }
 
+export function deleteVoiceFile(fileId, knowledgeBaseId) {
+  const query = knowledgeBaseId ? `?knowledge_base_id=${encodeURIComponent(knowledgeBaseId)}` : ''
+  return apiFetch(`/voice/files/${encodeURIComponent(fileId)}${query}`, {
+    method: 'DELETE',
+  })
+}
+
 export function getVoiceAssistants(limit = 100) {
   return apiFetch(`/voice/assistants?limit=${limit}`)
 }

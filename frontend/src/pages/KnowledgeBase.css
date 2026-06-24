@@ -359,7 +359,7 @@
     display: flex;
     gap: 0.35rem;
     flex-shrink: 0;
-    opacity: 0;
+    opacity: 1;
     transition: opacity 0.2s;
 }
 
@@ -391,6 +391,11 @@
     background: rgba(239, 68, 68, 0.1);
     border-color: #ef4444;
     color: #ef4444;
+}
+
+.card-action-btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
 }
 
 .action-icon {

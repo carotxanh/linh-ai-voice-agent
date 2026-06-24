@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
-import { getVoiceFiles, uploadVoiceFile } from '../services/voice'
+import { deleteVoiceFile, getVoiceFiles, uploadVoiceFile } from '../services/voice'
 import './KnowledgeBase.css'
 
 function MIcon({ name, className = '', filled = false, size = 24 }) {
@@ -64,6 +64,7 @@ export default function KnowledgeBase() {
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
+  const [deletingFileId, setDeletingFileId] = useState('')
   const [loadError, setLoadError] = useState('')
   const [uploadError, setUploadError] = useState('')
   const [dataSource, setDataSource] = useState('idle')
@@ -105,6 +106,24 @@ export default function KnowledgeBase() {
       setUploadError(error.message)
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const handleDelete = async (file) => {
+    if (!file?.id || deletingFileId) return
+    const confirmed = window.confirm(`Xoa tai lieu "${file.name}" khoi knowledge base?`)
+    if (!confirmed) return
+
+    setDeletingFileId(file.id)
+    setUploadError('')
+
+    try {
+      await deleteVoiceFile(file.id, file.metadata?.knowledgeBaseId)
+      setFiles((currentFiles) => currentFiles.filter((currentFile) => currentFile.id !== file.id))
+    } catch (error) {
+      setUploadError(error.message)
+    } finally {
+      setDeletingFileId('')
     }
   }
 
@@ -249,6 +268,15 @@ export default function KnowledgeBase() {
                     <MIcon name="article" size={18} />
                   </a>
                 )}
+                <button
+                  type="button"
+                  className="card-action-btn delete"
+                  title="Xoa tai lieu"
+                  onClick={() => handleDelete(file)}
+                  disabled={deletingFileId === file.id}
+                >
+                  <MIcon name={deletingFileId === file.id ? 'progress_activity' : 'delete'} size={18} />
+                </button>
               </div>
             </div>
           ))}
