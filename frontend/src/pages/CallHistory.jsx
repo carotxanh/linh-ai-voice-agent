@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import DashboardLayout from '../components/DashboardLayout'
-import { getVoiceCalls } from '../services/voice'
+import { getVoiceCall, getVoiceCalls } from '../services/voice'
 import './CallHistory.css'
 
 const waveformHeights = Array.from({ length: 80 }, (_, index) => {
@@ -46,34 +46,93 @@ function formatDateTime(value) {
 }
 
 function formatCost(value) {
-  const amount = Number(value || 0)
-  return `$${amount.toFixed(4)}`
+  return `$${Number(value || 0).toFixed(4)}`
 }
 
-function transcriptLines(transcript) {
-  if (!transcript) return []
+function getOutcome(call) {
+  if (call.successful === true) return { text: 'Thành công', className: 'outcome-success', icon: 'check_circle' }
+  if (call.reviewRequired) return { text: 'Cần xem lại', className: 'outcome-warning', icon: 'priority_high' }
+  if (call.successful === false) return { text: 'Chưa đạt', className: 'outcome-warning', icon: 'warning' }
+  return { text: 'Chưa đánh giá', className: 'outcome-muted', icon: 'help' }
+}
 
-  return transcript
+function hasVietnameseText(value = '') {
+  return /[ᡣ⧥鹻)סi]/i.test(value)
+}
+
+function vietnamizeSummary(value) {
+  if (!value) return 'Cuộc gọi ny cha c tm tt t Retell.'
+  if (hasVietnameseText(value)) return value
+
+  const replacements = [
+    [/\bthe agent\b/gi, 'LinhVoice'],
+    [/\bagent\b/gi, 'LinhVoice'],
+    [/\bthe user\b/gi, 'khch hng'],
+    [/\bthe customer\b/gi, 'khch hng'],
+    [/\buser\b/gi, 'khch hng'],
+    [/\bcustomer\b/gi, 'khch hng'],
+    [/\bcalled\b/gi, ' gi'],
+    [/\bspoke with\b/gi, ' trao i vi'],
+    [/\basked\b/gi, ' hi'],
+    [/\banswered\b/gi, ' tr li'],
+    [/\bsaid\b/gi, 'cho bit'],
+    [/\bagreed\b/gi, 'ng '],
+    [/\bscheduled\b/gi, ' t lch'],
+    [/\bappointment\b/gi, 'lch hn'],
+    [/\bpurchase inquiry\b/gi, 'nhu cu mua hng'],
+    [/\bpreference\b/gi, 'nhu cu u tin'],
+    [/\bwould like to\b/gi, 'mun'],
+    [/\bbook\b/gi, 't'],
+    [/\bnext monday\b/gi, 'th Hai ti'],
+    [/\bhappily\b/gi, 'vui v'],
+  ]
+
+  return replacements.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value)
+}
+
+function transcriptLines(call) {
+  if (Array.isArray(call?.transcriptTurns) && call.transcriptTurns.length > 0) {
+    return call.transcriptTurns.map((turn, index) => ({
+      id: turn.id || `${turn.speakerType}-${index}`,
+      speaker: turn.speaker || (turn.speakerType === 'customer' ? 'Khách hàng' : 'LinhVoice'),
+      text: turn.text,
+      isUser: turn.speakerType === 'customer',
+    })).filter((line) => line.text)
+  }
+
+  if (!call?.transcript) return []
+
+  return call.transcript
     .split('\n')
-    .map((line) => {
-      const match = line.match(/^(User|Customer|Caller|Assistant|AI|LINH|Khach|Khách):\s*(.*)$/i)
-      if (!match) return { speaker: 'Transcript', text: line.trim(), isUser: false }
+    .map((line, index) => {
+      const match = line.match(/^(User|Customer|Caller|Assistant|Agent|AI|LINH):\s*(.*)$/i)
+      if (!match) return { id: `line-${index}`, speaker: 'Transcript', text: line.trim(), isUser: false }
+      const isUser = /user|customer|caller/i.test(match[1])
       return {
-        speaker: match[1],
+        id: `line-${index}`,
+        speaker: isUser ? 'Khách hàng' : 'LinhVoice',
         text: match[2].trim(),
-        isUser: /user|customer|caller|khach|khách/i.test(match[1]),
+        isUser,
       }
     })
     .filter((line) => line.text)
 }
 
+function buildTranscriptText(call) {
+  return transcriptLines(call).map((line) => `${line.isUser ? 'Khách hàng' : 'LinhVoice'}: ${line.text}`).join('\n')
+}
+
 export default function CallHistory() {
+  const audioRef = useRef(null)
   const [calls, setCalls] = useState([])
   const [selectedCall, setSelectedCall] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [modalTab, setModalTab] = useState('summary')
+  const [isRecordingPlaying, setIsRecordingPlaying] = useState(false)
+  const [recordingProgress, setRecordingProgress] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isCallDetailLoading, setIsCallDetailLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [dataSource, setDataSource] = useState('idle')
 
@@ -100,7 +159,10 @@ export default function CallHistory() {
 
   const filteredCalls = useMemo(() => calls.filter((call) => {
     const query = searchQuery.toLowerCase()
-    const matchesStatus = filterStatus === 'all' || call.status === filterStatus
+    const matchesStatus = filterStatus === 'all'
+      || call.status === filterStatus
+      || (filterStatus === 'review' && call.reviewRequired)
+      || (filterStatus === 'successful' && call.successful === true)
     const searchable = [
       call.id,
       call.phoneNumber,
@@ -109,17 +171,38 @@ export default function CallHistory() {
       call.type,
       call.endedReason,
       call.rawStatus,
+      call.summary,
+      call.sentimentLabel,
+      call.intent,
     ].join(' ').toLowerCase()
 
     return matchesStatus && searchable.includes(query)
   }), [calls, filterStatus, searchQuery])
 
-  const openModal = (call) => {
+  const openModal = async (call) => {
     setSelectedCall(call)
     setModalTab('summary')
+    setIsRecordingPlaying(false)
+    setRecordingProgress(0)
+
+    if (!call?.id) return
+    setIsCallDetailLoading(true)
+    try {
+      const detail = await getVoiceCall(call.id)
+      setSelectedCall({ ...call, ...detail })
+    } catch (error) {
+      setLoadError(error.message)
+    } finally {
+      setIsCallDetailLoading(false)
+    }
   }
 
   const closeModal = () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    setIsRecordingPlaying(false)
+    setRecordingProgress(0)
     setSelectedCall(null)
   }
 
@@ -130,113 +213,189 @@ export default function CallHistory() {
   }
 
   const copyTranscript = async () => {
-    if (!selectedCall?.transcript) return
-    await navigator.clipboard.writeText(selectedCall.transcript)
+    if (!selectedCall) return
+    const text = buildTranscriptText(selectedCall)
+    if (!text) return
+    await navigator.clipboard.writeText(text)
   }
 
-  const renderTabContent = () => {
-    if (!selectedCall) return null
+  const toggleRecording = async () => {
+    const audio = audioRef.current
+    if (!audio) return
 
-    if (modalTab === 'summary') {
-      return (
-        <div className="tab-content-area">
-          <div className="modal-section">
-            <h3 className="section-title">Tóm tắt cuộc gọi</h3>
-            <div className="summary-box">
-              <p>{selectedCall.summary || 'Cuộc gọi này chưa có tóm tắt.'}</p>
-            </div>
-          </div>
-          <div className="customer-detail-stats">
-            <div className="customer-stat-item">
-              <span className="customer-stat-label">Chi phí</span>
-              <span className="customer-stat-value">{formatCost(selectedCall.cost)}</span>
-            </div>
-            <div className="customer-stat-item">
-              <span className="customer-stat-label">Tin nhắn</span>
-              <span className="customer-stat-value">{selectedCall.messageCount || 0}</span>
-            </div>
-            <div className="customer-stat-item">
-              <span className="customer-stat-label">Thời lượng</span>
-              <span className="customer-stat-value">{selectedCall.duration}</span>
-            </div>
-            <div className="customer-stat-item">
-              <span className="customer-stat-label">Lý do kết thúc</span>
-              <span className="customer-stat-value highlight">{selectedCall.endedReason || '-'}</span>
-            </div>
-          </div>
-        </div>
-      )
+    if (audio.paused) {
+      await audio.play()
+      setIsRecordingPlaying(true)
+    } else {
+      audio.pause()
+      setIsRecordingPlaying(false)
     }
+  }
 
-    if (modalTab === 'transcript') {
-      const lines = transcriptLines(selectedCall.transcript)
-
-      return (
-        <div className="tab-content-area">
-          {lines.length > 0 ? (
-            <div className="transcript-container">
-              {lines.map((line, index) => (
-                <div key={`${line.speaker}-${index}`} className={line.isUser ? 'transcript-message customer' : 'transcript-message agent'}>
-                  <div className="message-avatar">
-                    <MIcon name={line.isUser ? 'person' : 'smart_toy'} size={18} />
-                  </div>
-                  <div className="message-content">
-                    <div className="message-header">
-                      <span className="message-sender">{line.isUser ? 'Khách hàng' : 'Trợ lý AI'}</span>
-                    </div>
-                    <div className="message-text">{line.text}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-transcript">
-              <MIcon name="chat_bubble_outline" size={40} className="empty-icon-material" />
-              <p>Cuộc gọi này chưa có nội dung hội thoại.</p>
-            </div>
-          )}
-        </div>
-      )
+  const updateRecordingProgress = () => {
+    const audio = audioRef.current
+    if (!audio?.duration) {
+      setRecordingProgress(0)
+      return
     }
+    setRecordingProgress(Math.min(100, (audio.currentTime / audio.duration) * 100))
+  }
 
+  const renderSummaryTab = () => {
+    const outcome = getOutcome(selectedCall)
     return (
       <div className="tab-content-area">
-        <div className="customer-detail-card">
-          <div className="customer-detail-section">
-            <h4>Mã tham chiếu</h4>
-            <div className="sidebar-info-list">
-              <div className="sidebar-info-row">
-                <span className="sidebar-label">Mã cuộc gọi</span>
-                <span className="sidebar-value">{selectedCall.id}</span>
-              </div>
-              <div className="sidebar-info-row">
-                <span className="sidebar-label">Mã trợ lý</span>
-                <span className="sidebar-value">{selectedCall.assistantId || '-'}</span>
-              </div>
-              <div className="sidebar-info-row">
-                <span className="sidebar-label">Mã hotline</span>
-                <span className="sidebar-value">{selectedCall.phoneNumberId || '-'}</span>
-              </div>
+        <div className="insight-grid">
+          <div className={`insight-card ${outcome.className}`}>
+            <MIcon name={outcome.icon} size={22} />
+            <div>
+              <span>Kết quả</span>
+              <strong>{outcome.text}</strong>
             </div>
           </div>
-          <div className="customer-detail-section">
-            <h4>Chi phí chi tiết</h4>
-            <div className="sidebar-info-list">
-              {Object.entries(selectedCall.costBreakdown || {}).length > 0 ? (
-                Object.entries(selectedCall.costBreakdown).map(([key, value]) => (
-                  <div className="sidebar-info-row" key={key}>
-                    <span className="sidebar-label">{key}</span>
-                    <span className="sidebar-value">{formatCost(value)}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="customer-note">Chưa có chi phí chi tiết cho cuộc gọi này.</p>
-              )}
+          <div className="insight-card">
+            <MIcon name="mood" size={22} />
+            <div>
+              <span>Cảm xúc khách</span>
+              <strong>{selectedCall.sentimentLabel || 'Chưa rõ'}</strong>
             </div>
+          </div>
+          <div className="insight-card">
+            <MIcon name="category" size={22} />
+            <div>
+              <span>Nhóm nhu cầu</span>
+              <strong>{selectedCall.intent || 'Chưa phân loại'}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-section">
+          <h3 className="section-title">Tóm tắt dễ hiểu</h3>
+          <div className="summary-box">
+            <p>{vietnamizeSummary(selectedCall.summary)}</p>
+          </div>
+        </div>
+
+        <div className="customer-detail-stats">
+          <div className="customer-stat-item">
+            <span className="customer-stat-label">Chi phí</span>
+            <span className="customer-stat-value">{formatCost(selectedCall.cost)}</span>
+          </div>
+          <div className="customer-stat-item">
+            <span className="customer-stat-label">Lượt trao đổi</span>
+            <span className="customer-stat-value">{selectedCall.messageCount || 0}</span>
+          </div>
+          <div className="customer-stat-item">
+            <span className="customer-stat-label">Thời lượng</span>
+            <span className="customer-stat-value">{selectedCall.duration}</span>
+          </div>
+          <div className="customer-stat-item">
+            <span className="customer-stat-label">Độ trễ TB</span>
+            <span className="customer-stat-value">{selectedCall.averageLatencyMs || 0} ms</span>
           </div>
         </div>
       </div>
     )
+  }
+
+  const renderTranscriptTab = () => {
+    const lines = transcriptLines(selectedCall)
+
+    return (
+      <div className="tab-content-area">
+        {lines.length > 0 ? (
+          <div className="transcript-container">
+            {lines.map((line) => (
+              <div key={line.id} className={line.isUser ? 'transcript-message customer' : 'transcript-message agent'}>
+                <div className="message-avatar">
+                  <MIcon name={line.isUser ? 'person' : 'smart_toy'} size={18} />
+                </div>
+                <div className="message-content">
+                  <div className="message-header">
+                    <span className="message-sender">{line.isUser ? 'Khách hàng' : 'LinhVoice'}</span>
+                  </div>
+                  <div className="message-text">{line.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-transcript">
+            <MIcon name="chat_bubble_outline" size={40} className="empty-icon-material" />
+            <p>Cuộc gọi nay chua co noi dung hoi thoai.</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderCostTab = () => (
+    <div className="tab-content-area">
+      <div className="customer-detail-card">
+        <div className="customer-detail-section">
+          <h4>Chi phí theo hang muc</h4>
+          <div className="sidebar-info-list">
+            {selectedCall.costProducts?.length > 0 ? selectedCall.costProducts.map((item) => (
+              <div className="sidebar-info-row" key={item.name}>
+                <span className="sidebar-label">{item.name}</span>
+                <span className="sidebar-value">{formatCost(item.cost)}</span>
+              </div>
+            )) : (
+              <p className="customer-note">Chưa có chi phí chi tiết cho cuộc gọi này.</p>
+            )}
+          </div>
+        </div>
+        <div className="customer-detail-section">
+          <h4>Liên kết Retell</h4>
+          <div className="sidebar-info-list">
+            <div className="sidebar-info-row">
+              <span className="sidebar-label">Bản ghi âm</span>
+              <span className="sidebar-value">{selectedCall.recordingUrl ? 'Có sẵn' : 'Chưa có'}</span>
+            </div>
+            <div className="sidebar-info-row">
+              <span className="sidebar-label">Public log</span>
+              <span className="sidebar-value">{selectedCall.publicLogUrl ? 'Có sẵn' : 'Chưa có'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderTechnicalTab = () => (
+    <div className="tab-content-area">
+      <div className="customer-detail-card">
+        <div className="customer-detail-section">
+          <h4>Mã tham chiếu</h4>
+          <div className="sidebar-info-list">
+            <div className="sidebar-info-row">
+              <span className="sidebar-label">Mã cuộc gọi</span>
+              <span className="sidebar-value">{selectedCall.id}</span>
+            </div>
+            <div className="sidebar-info-row">
+              <span className="sidebar-label">Mã LinhVoice</span>
+              <span className="sidebar-value">{selectedCall.assistantId || '-'}</span>
+            </div>
+            <div className="sidebar-info-row">
+              <span className="sidebar-label">Hướng gọi</span>
+              <span className="sidebar-value">{selectedCall.direction || '-'}</span>
+            </div>
+            <div className="sidebar-info-row">
+              <span className="sidebar-label">Lý do kết thúc</span>
+              <span className="sidebar-value">{selectedCall.endedReason || '-'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderTabContent = () => {
+    if (!selectedCall) return null
+    if (modalTab === 'summary') return renderSummaryTab()
+    if (modalTab === 'transcript') return renderTranscriptTab()
+    if (modalTab === 'cost') return renderCostTab()
+    return renderTechnicalTab()
   }
 
   return (
@@ -247,7 +406,7 @@ export default function CallHistory() {
             <h1>Lịch sử cuộc gọi</h1>
             <span className="call-count">{filteredCalls.length} cuộc gọi</span>
             <span className={`data-source-badge ${dataSource}`}>
-              {dataSource === 'live' ? 'Đã kết nối' : 'Chưa kết nối'}
+              {dataSource === 'live' ? 'Đã kết nối Retell' : 'Chưa kết nối'}
             </span>
           </div>
           <div className="page-header-actions">
@@ -270,7 +429,7 @@ export default function CallHistory() {
             <MIcon name="search" size={20} className="search-icon" />
             <input
               type="text"
-              placeholder="Tìm theo số điện thoại, trợ lý AI, lý do kết thúc..."
+              placeholder="Tìm số điện thoại, LinhVoice, tóm tắt, cảm xúc..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="search-input"
@@ -279,9 +438,10 @@ export default function CallHistory() {
           <div className="filter-tabs">
             {[
               ['all', 'Tất cả'],
-              ['active', 'Đang xử lý'],
+              ['successful', 'Thành công'],
+              ['review', 'Cần xem lại'],
               ['completed', 'Hoàn tất'],
-              ['transferred', 'Chuyển tiếp'],
+              ['active', 'Đang xử lý'],
               ['missed', 'Nhỡ'],
             ].map(([value, label]) => (
               <button
@@ -300,47 +460,47 @@ export default function CallHistory() {
             <thead>
               <tr>
                 <th>Cuộc gọi</th>
-                <th>Loại</th>
-                <th>Trợ lý AI</th>
+                <th>Kết quả</th>
+                <th>LinhVoice</th>
                 <th>Khách hàng</th>
+                <th>Tóm tắt</th>
                 <th>Thời lượng</th>
                 <th>Chi phí</th>
-                <th>Trạng thái</th>
-                <th>Lý do kết thúc</th>
                 <th>Bắt đầu</th>
               </tr>
             </thead>
             <tbody>
               {filteredCalls.map((call) => {
-                const statusInfo = getStatusInfo(call.status)
+                const outcome = getOutcome(call)
                 return (
                   <tr key={call.id} className="call-table-row" onClick={() => openModal(call)}>
                     <td>
-                      <span className="cell-phone">{String(call.id || '').slice(0, 8) || '-'}</span>
+                      <span className="cell-phone">{String(call.id || '').slice(0, 12) || '-'}</span>
+                      <span className="cell-subtle">{call.type || '-'}</span>
                     </td>
                     <td>
-                      <span className="cell-messages">{call.type || '-'}</span>
+                      <span className={`call-outcome ${outcome.className}`}>
+                        <MIcon name={outcome.icon} size={15} />
+                        {outcome.text}
+                      </span>
                     </td>
                     <td>
                       <div className="cell-agent">
                         <MIcon name="smart_toy" size={18} className="agent-icon-small" />
-                        <span>{call.assistantName || 'Trợ lý AI'}</span>
+                        <span>{call.assistantName || 'LinhVoice'}</span>
                       </div>
                     </td>
                     <td>
-                      <span className="cell-phone">{call.customerNumber || call.phoneNumber}</span>
+                      <span className="cell-phone">{call.customerNumber || call.phoneNumber || '-'}</span>
+                    </td>
+                    <td>
+                      <span className="cell-summary">{call.summary ? vietnamizeSummary(call.summary) : (call.endedReason || '-')}</span>
                     </td>
                     <td>
                       <span className="cell-duration">{call.duration}</span>
                     </td>
                     <td>
                       <span className="cell-duration">{formatCost(call.cost)}</span>
-                    </td>
-                    <td>
-                      <span className={`call-table-status ${statusInfo.class}`}>{statusInfo.text}</span>
-                    </td>
-                    <td>
-                      <span className="cell-date">{call.endedReason || call.rawStatus || '-'}</span>
                     </td>
                     <td>
                       <span className="cell-date">{formatDateTime(call.timestamp)}</span>
@@ -354,8 +514,8 @@ export default function CallHistory() {
           {isLoading && (
             <div className="empty-state">
               <MIcon name="progress_activity" size={48} className="empty-icon-material loading-spin" />
-              <h3>Đang tải lịch sử cuộc gọi</h3>
-              <p>Đang lấy các cuộc gọi mới nhất.</p>
+              <h3>Đang tải lich su cuộc gọi</h3>
+              <p>Đang lấy dữ liệu mới nhất từ Retell.</p>
             </div>
           )}
 
@@ -363,7 +523,7 @@ export default function CallHistory() {
             <div className="empty-state">
               <MIcon name="phone_missed" size={48} className="empty-icon-material" />
               <h3>Không tìm thấy cuộc gọi</h3>
-              <p>{loadError ? 'Kiểm tra kết nối hệ thống rồi thử làm mới.' : 'Thử đổi bộ lọc hoặc từ khóa tìm kiếm.'}</p>
+              <p>{loadError ? 'Kiểm tra kết nối Retell rồi thử làm mới.' : 'Thử đổi bộ lọc hoặc từ khóa tìm kiếm.'}</p>
             </div>
           )}
         </div>
@@ -373,13 +533,13 @@ export default function CallHistory() {
             <div className="modal-container">
               <div className="modal-header">
                 <div className="modal-header-left">
-                  <h2>Cuộc gọi {String(selectedCall.id || '').slice(0, 8)}</h2>
+                  <h2>Cuộc gọi {String(selectedCall.id || '').slice(0, 12)}</h2>
                   <div className="modal-meta">
                     <span className="modal-meta-item">
-                      <MIcon name="smart_toy" size={16} className="meta-icon" /> {selectedCall.assistantName || 'Trợ lý AI'}
+                      <MIcon name="smart_toy" size={16} className="meta-icon" /> {selectedCall.assistantName || 'LinhVoice'}
                     </span>
                     <span className="modal-meta-item">
-                      <MIcon name="call" size={16} className="meta-icon" /> {selectedCall.customerNumber || selectedCall.phoneNumber}
+                      <MIcon name="call" size={16} className="meta-icon" /> {selectedCall.customerNumber || selectedCall.phoneNumber || '-'}
                     </span>
                     <span className="modal-meta-item">
                       <MIcon name="schedule" size={16} className="meta-icon" /> {selectedCall.duration}
@@ -397,23 +557,66 @@ export default function CallHistory() {
               <div className="modal-body">
                 <div className="modal-main">
                   <div className="audio-player">
-                    <div className="audio-waveform">
-                      <div className="waveform-bars">
-                        {waveformHeights.map((height, index) => (
-                          <div key={index} className="waveform-bar" style={{ height }}></div>
-                        ))}
+                    {selectedCall.recordingUrl ? (
+                      <div className="recording-player">
+                        <audio
+                          ref={audioRef}
+                          className="recording-audio-hidden"
+                          preload="metadata"
+                          src={selectedCall.recordingUrl}
+                          onEnded={() => setIsRecordingPlaying(false)}
+                          onPause={() => setIsRecordingPlaying(false)}
+                          onPlay={() => setIsRecordingPlaying(true)}
+                          onTimeUpdate={updateRecordingProgress}
+                          onLoadedMetadata={updateRecordingProgress}
+                        >
+                          Trình duyệt của bạn không hỗ trợ nghe ghi âm trực tiếp.
+                        </audio>
+                        <button
+                          type="button"
+                          className={`audio-waveform waveform-button ${isRecordingPlaying ? 'is-playing' : ''}`}
+                          onClick={toggleRecording}
+                          style={{ '--recording-progress': `${recordingProgress}%` }}
+                          aria-label={isRecordingPlaying ? 'Tạm dừng ghi âm' : 'Phát ghi âm'}
+                        >
+                          <span className="waveform-progress-fill"></span>
+                          <span className="waveform-scan-line"></span>
+                          <span className="waveform-play-indicator">
+                            <MIcon name={isRecordingPlaying ? 'pause' : 'play_arrow'} size={22} filled />
+                          </span>
+                          <div className="waveform-bars">
+                            {waveformHeights.map((height, index) => (
+                              <div
+                                key={index}
+                                className="waveform-bar"
+                                style={{ height, '--bar-index': index }}
+                              ></div>
+                            ))}
+                          </div>
+                          <span className="waveform-status">{isRecordingPlaying ? 'Đang phát' : 'Bấm để nghe'}</span>
+                        </button>
                       </div>
-                    </div>
-                    <div className="audio-controls">
-                      <span className="audio-time">Ghi âm: {selectedCall.recordingUrl ? 'có sẵn' : 'chưa có'}</span>
-                    </div>
+                    ) : (
+                      <div className="recording-empty">
+                        <MIcon name="graphic_eq" size={28} />
+                        <div>
+                          <strong>Chưa có ghi am</strong>
+                          <span>Retell sẽ trả recording khi cuộc gọi đã xử lý xong.</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="audio-actions">
                       {selectedCall.recordingUrl && (
                         <a className="btn-download" href={selectedCall.recordingUrl} target="_blank" rel="noreferrer">
-                          <MIcon name="download" size={16} /> Mở ghi âm
+                          <MIcon name="open_in_new" size={16} /> Mở tab mới
                         </a>
                       )}
-                      <button className="btn-download" onClick={copyTranscript} disabled={!selectedCall.transcript}>
+                      {selectedCall.publicLogUrl && (
+                        <a className="btn-download" href={selectedCall.publicLogUrl} target="_blank" rel="noreferrer">
+                          <MIcon name="receipt_long" size={16} /> Log Retell
+                        </a>
+                      )}
+                      <button className="btn-download" onClick={copyTranscript} disabled={transcriptLines(selectedCall).length === 0}>
                         <MIcon name="content_copy" size={16} /> Sao chép hội thoại
                       </button>
                     </div>
@@ -423,7 +626,8 @@ export default function CallHistory() {
                     {[
                       ['summary', 'summarize', 'Tóm tắt'],
                       ['transcript', 'chat', 'Hội thoại'],
-                      ['metadata', 'data_object', 'Chi tiết'],
+                      ['cost', 'payments', 'Chi phí'],
+                      ['metadata', 'data_object', 'Kỹ thuật'],
                     ].map(([tab, icon, label]) => (
                       <button
                         key={tab}
@@ -443,7 +647,7 @@ export default function CallHistory() {
                   <div className="sidebar-section">
                     <h4 className="sidebar-section-title">
                       <MIcon name="info" size={16} className="sidebar-title-icon" />
-                      Thông tin cuộc gọi
+                      Thông tin
                     </h4>
                     <div className="sidebar-info-list">
                       <div className="sidebar-info-row">
@@ -451,10 +655,6 @@ export default function CallHistory() {
                         <span className={`sidebar-badge ${getStatusInfo(selectedCall.status).class}`}>
                           {getStatusInfo(selectedCall.status).text}
                         </span>
-                      </div>
-                      <div className="sidebar-info-row">
-                        <span className="sidebar-label">Trạng thái hệ thống</span>
-                        <span className="sidebar-value">{selectedCall.rawStatus || '-'}</span>
                       </div>
                       <div className="sidebar-info-row">
                         <span className="sidebar-label">Bắt đầu</span>
@@ -465,8 +665,12 @@ export default function CallHistory() {
                         <span className="sidebar-value">{formatDateTime(selectedCall.endedAt)}</span>
                       </div>
                       <div className="sidebar-info-row">
-                        <span className="sidebar-label">Loại cuộc gọi</span>
-                        <span className="sidebar-value">{selectedCall.type || '-'}</span>
+                        <span className="sidebar-label">Từ số</span>
+                        <span className="sidebar-value">{selectedCall.fromNumber || '-'}</span>
+                      </div>
+                      <div className="sidebar-info-row">
+                        <span className="sidebar-label">Đến số</span>
+                        <span className="sidebar-value">{selectedCall.toNumber || '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -482,7 +686,7 @@ export default function CallHistory() {
                       </div>
                       <div className="sidebar-customer-info">
                         <span className="sidebar-customer-name">{selectedCall.customerName || 'Khách hàng'}</span>
-                        <span className="sidebar-customer-phone">{selectedCall.customerNumber || selectedCall.phoneNumber}</span>
+                        <span className="sidebar-customer-phone">{selectedCall.customerNumber || selectedCall.phoneNumber || '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -490,15 +694,15 @@ export default function CallHistory() {
                   <div className="sidebar-section">
                     <h4 className="sidebar-section-title">
                       <MIcon name="smart_toy" size={16} className="sidebar-title-icon" />
-                      Trợ lý AI
+                      LinhVoice
                     </h4>
                     <div className="sidebar-customer-card">
                       <div className="sidebar-agent-avatar">
                         <MIcon name="smart_toy" size={20} />
                       </div>
                       <div className="sidebar-customer-info">
-                        <span className="sidebar-customer-name">{selectedCall.assistantName || 'Trợ lý AI'}</span>
-                        <span className="sidebar-customer-phone">{selectedCall.assistantId || 'Chưa có mã trợ lý'}</span>
+                        <span className="sidebar-customer-name">{selectedCall.assistantName || 'LinhVoice'}</span>
+                        <span className="sidebar-customer-phone">{selectedCall.assistantId || '-'}</span>
                       </div>
                     </div>
                   </div>

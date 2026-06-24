@@ -17,9 +17,10 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
@@ -33,10 +34,12 @@ CORS_ORIGINS = [
     for origin in os.getenv("CORS_ORIGINS", "").split(",")
     if origin.strip()
 ]
-DEFAULT_VOICE_API_BASE_URL = os.getenv("VOICE_API_BASE_URL")
+DEFAULT_VOICE_API_BASE_URL = os.getenv("VOICE_API_BASE_URL", "https://api.retellai.com")
 if DEFAULT_VOICE_API_BASE_URL:
     DEFAULT_VOICE_API_BASE_URL = DEFAULT_VOICE_API_BASE_URL.rstrip("/")
+RETELL_KNOWLEDGE_BASE_ID = os.getenv("RETELL_KNOWLEDGE_BASE_ID")
 DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_CONNECT_TIMEOUT = int(os.getenv("DATABASE_CONNECT_TIMEOUT", "5"))
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
@@ -62,7 +65,7 @@ engine_options = {"pool_pre_ping": True}
 if database_host and database_host.endswith(".supabase.com"):
     engine_options["connect_args"] = {
         "sslmode": "require",
-        "connect_timeout": 10,
+        "connect_timeout": DATABASE_CONNECT_TIMEOUT,
     }
 engine = create_engine(DATABASE_URL, **engine_options)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -166,12 +169,30 @@ def ensure_user_columns():
                 f"voice_api_base_url VARCHAR(255) DEFAULT '{voice_api_default}' NOT NULL"
             )
         )
+        connection.execute(
+            text(f"ALTER TABLE users ALTER COLUMN voice_api_base_url SET DEFAULT '{voice_api_default}'")
+        )
 
 
 @app.on_event("startup")
 def create_database_tables():
-    Base.metadata.create_all(bind=engine)
-    ensure_user_columns()
+    try:
+        Base.metadata.create_all(bind=engine)
+        ensure_user_columns()
+    except OperationalError as e:
+        logger.error("Database startup check failed: %s", e)
+    except SQLAlchemyError as e:
+        logger.error("Database startup check failed: %s", e)
+
+
+@app.exception_handler(OperationalError)
+async def database_operational_error_handler(_request, _exc):
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Khong the ket noi Supabase/Postgres. Kiem tra DATABASE_URL, pooler port va mang/firewall.",
+        },
+    )
 
 # CORS â€” cho phÃ©p frontend Vite dev server (port 5173) gá»i API
 if CORS_ORIGINS:
@@ -520,97 +541,249 @@ def get_voice_api_config(user: User) -> tuple[str, str]:
     if not base_url:
         raise HTTPException(status_code=500, detail="VOICE_API_BASE_URL chua duoc cau hinh")
 
-    return decrypt_secret(user.voice_api_key_encrypted), base_url.rstrip("/")
+    return decrypt_secret(user.voice_api_key_encrypted), normalize_voice_api_base_url(base_url)
 
 
-async def voice_api_get(user: User, path: str, params: dict[str, Any] | None = None) -> Any:
+def normalize_voice_api_base_url(base_url: str) -> str:
+    normalized = base_url.rstrip("/")
+    for version_suffix in ("/v1", "/v2", "/v3"):
+        if normalized.endswith(version_suffix):
+            return normalized[: -len(version_suffix)]
+    return normalized
+
+
+async def retell_api_request(
+    user: User,
+    method: str,
+    path: str,
+    params: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = None,
+    files: dict[str, Any] | list[tuple[str, Any]] | None = None,
+    timeout: float = 20.0,
+) -> Any:
     token, base_url = get_voice_api_config(user)
     url = f"{base_url}{path}"
+    headers = {"Authorization": f"Bearer {token}"}
+    if files is None:
+        headers["Content-Type"] = "application/json"
+    clean_payload = (
+        {key: value for key, value in (payload or {}).items() if value is not None}
+        if payload is not None
+        else None
+    )
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            response = await client.get(
+            response = await client.request(
+                method,
                 url,
                 params={key: value for key, value in (params or {}).items() if value is not None},
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
+                json=clean_payload if files is None else None,
+                files=files,
+                headers=headers,
             )
         except httpx.RequestError as e:
             raise HTTPException(
                 status_code=502,
-                detail=f"Khong the ket noi toi dich vu thoai: {str(e)}",
+                detail=f"Khong the ket noi toi Retell AI: {str(e)}",
             )
 
     if response.status_code >= 400:
         raise HTTPException(
             status_code=response.status_code,
-            detail=f"Dich vu thoai bao loi: {response.text}",
+            detail=f"Retell AI bao loi: {response.text}",
         )
 
-    return response.json()
-
-
-async def voice_api_patch(user: User, path: str, payload: dict[str, Any]) -> Any:
-    token, base_url = get_voice_api_config(user)
-    url = f"{base_url}{path}"
-
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        try:
-            response = await client.patch(
-                url,
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
-            )
-        except httpx.RequestError as e:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Khong the ket noi toi dich vu thoai: {str(e)}",
-            )
-
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=response.status_code,
-            detail=f"Dich vu thoai bao loi: {response.text}",
-        )
-
+    if not response.content:
+        return None
     return response.json()
 
 
 async def voice_api_upload_file(user: User, file: UploadFile) -> Any:
-    token, base_url = get_voice_api_config(user)
     content = await file.read()
-
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        try:
-            response = await client.post(
-                f"{base_url}/file",
-                files={
-                    "file": (
-                        file.filename,
-                        content,
-                        file.content_type or "application/octet-stream",
-                    )
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
-        except httpx.RequestError as e:
+    knowledge_base_id = RETELL_KNOWLEDGE_BASE_ID
+    if not knowledge_base_id:
+        knowledge_bases = await retell_api_request(user, "GET", "/list-knowledge-bases")
+        if not knowledge_bases:
             raise HTTPException(
-                status_code=502,
-                detail=f"Khong the tai tai lieu len dich vu thoai: {str(e)}",
+                status_code=400,
+                detail="Chua co knowledge base tren Retell. Hay tao knowledge base hoac cau hinh RETELL_KNOWLEDGE_BASE_ID",
+            )
+        knowledge_base_id = knowledge_bases[0].get("knowledge_base_id")
+
+    knowledge_base = await retell_api_request(
+        user,
+        "POST",
+        f"/add-knowledge-base-sources/{knowledge_base_id}",
+        files=[
+            (
+                "knowledge_base_files",
+                (
+                    file.filename,
+                    content,
+                    file.content_type or "application/octet-stream",
+                ),
+            )
+        ],
+        timeout=60.0,
+    )
+
+    sources = normalize_knowledge_base_sources(knowledge_base)
+    for source in sources:
+        if source.get("originalName") == file.filename or source.get("name") == file.filename:
+            return source
+
+    return normalize_knowledge_base(knowledge_base)
+
+
+async def retell_api_list_all(
+    user: User,
+    method: str,
+    path: str,
+    limit: int = 100,
+    params: dict[str, Any] | None = None,
+    payload: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    request_params = {**(params or {}), "limit": limit}
+    request_payload = {**(payload or {}), "limit": limit}
+    items: list[dict[str, Any]] = []
+    pagination_key = None
+
+    while True:
+        if method.upper() == "GET":
+            page = await retell_api_request(
+                user,
+                method,
+                path,
+                params={**request_params, "pagination_key": pagination_key},
+            )
+        else:
+            page = await retell_api_request(
+                user,
+                method,
+                path,
+                payload={**request_payload, "pagination_key": pagination_key},
             )
 
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=response.status_code,
-            detail=f"Dich vu thoai bao loi: {response.text}",
+        if isinstance(page, list):
+            return page
+
+        page_items = page.get("items", []) if isinstance(page, dict) else []
+        items.extend(page_items)
+        pagination_key = page.get("pagination_key") if isinstance(page, dict) else None
+
+        if not isinstance(page, dict) or not page.get("has_more") or not pagination_key or len(items) >= limit:
+            return items[:limit]
+
+
+async def retell_list_calls(
+    user: User,
+    limit: int = 50,
+    filter_criteria: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    payload = {"filter_criteria": filter_criteria or {}}
+
+    try:
+        return await retell_api_list_all(
+            user,
+            "POST",
+            "/v3/list-calls",
+            limit=limit,
+            payload=payload,
+        )
+    except HTTPException as e:
+        if e.status_code != 404:
+            raise
+
+    legacy_calls = await retell_api_request(
+        user,
+        "POST",
+        "/v2/list-calls",
+        payload={"limit": limit, **payload},
+    )
+    if not isinstance(legacy_calls, list):
+        return []
+
+    return legacy_calls[:limit]
+
+
+def retell_timestamp_to_iso(value: Any) -> str:
+    if value is None or value == "":
+        return ""
+    try:
+        timestamp = float(value)
+        if timestamp > 1_000_000_000_000:
+            timestamp = timestamp / 1000
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()
+    except (TypeError, ValueError, OSError):
+        return format_iso_datetime(value)
+
+
+def iso_datetime_to_retell_timestamp(value: str) -> int | None:
+    if not value:
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+    return int(parsed.timestamp() * 1000)
+
+
+def pick_retell_agent_binding(bindings: Any) -> dict[str, Any]:
+    if isinstance(bindings, list) and bindings:
+        return bindings[0] if isinstance(bindings[0], dict) else {}
+    return {}
+
+
+def normalize_retell_status(status: Any, disconnection_reason: Any = None) -> str:
+    normalized = str(status or "").lower()
+    reason = str(disconnection_reason or "").lower()
+
+    if normalized in {"registered", "ongoing", "ringing", "in_progress", "in-progress"}:
+        return "active"
+    if normalized in {"ended", "completed", "complete"}:
+        return "completed"
+    if any(value in reason for value in ("voicemail", "dial_no_answer", "busy", "not_connected")):
+        return "missed"
+    if "transfer" in reason:
+        return "transferred"
+    return normalized or "unknown"
+
+
+def normalize_knowledge_base_sources(knowledge_base: dict[str, Any]) -> list[dict[str, Any]]:
+    normalized_sources = []
+    knowledge_base_id = knowledge_base.get("knowledge_base_id")
+    knowledge_base_name = knowledge_base.get("knowledge_base_name") or "Knowledge base"
+    status = knowledge_base.get("status")
+    updated_at = retell_timestamp_to_iso(knowledge_base.get("last_refreshed_timestamp"))
+
+    for source in knowledge_base.get("knowledge_base_sources") or []:
+        normalized_sources.append(
+            {
+                "id": source.get("source_id") or f"{knowledge_base_id}:{source.get('filename') or source.get('type')}",
+                "name": source.get("filename") or source.get("url") or source.get("type") or knowledge_base_name,
+                "originalName": source.get("filename") or "",
+                "status": "done" if status == "complete" else status or "",
+                "purpose": "knowledge_base",
+                "mimetype": source.get("type") or "",
+                "bytes": source.get("file_size") or 0,
+                "parsedTextBytes": 0,
+                "url": source.get("file_url") or source.get("url") or "",
+                "parsedTextUrl": "",
+                "createdAt": updated_at,
+                "updatedAt": updated_at,
+                "metadata": {"knowledgeBaseId": knowledge_base_id, "knowledgeBaseName": knowledge_base_name},
+                "raw": source,
+            }
         )
 
-    return response.json()
+    return normalized_sources
 
 
 def get_nested(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
@@ -651,6 +824,124 @@ def format_cost(value: Any) -> float:
         return 0
 
 
+def format_retell_product_name(value: Any) -> str:
+    product = str(value or "").replace("_", " ").strip()
+    return product.title() if product else "Unknown"
+
+
+def normalize_transcript_turns(call: dict[str, Any]) -> list[dict[str, Any]]:
+    transcript_object = (
+        call.get("transcript_object")
+        or call.get("scrubbed_transcript_with_tool_calls")
+        or call.get("transcript_with_tool_calls")
+        or get_nested(call, "artifact", "messages", default=[])
+        or []
+    )
+    turns: list[dict[str, Any]] = []
+
+    if isinstance(transcript_object, list):
+        for index, message in enumerate(transcript_object):
+            if not isinstance(message, dict):
+                continue
+            role = str(message.get("role") or message.get("speaker") or "").lower()
+            content = (message.get("content") or message.get("text") or "").strip()
+            if not content:
+                continue
+            speaker_type = "customer" if role in {"user", "customer", "caller"} else "agent"
+            turns.append(
+                {
+                    "id": f"turn-{index}",
+                    "speaker": "Khách hàng" if speaker_type == "customer" else "LinhVoice",
+                    "speakerType": speaker_type,
+                    "text": content,
+                    "start": (message.get("words") or [{}])[0].get("start") if message.get("words") else None,
+                    "end": (message.get("words") or [{}])[-1].get("end") if message.get("words") else None,
+                }
+            )
+
+    if turns:
+        return turns
+
+    transcript = call.get("transcript") or ""
+    for index, line in enumerate(transcript.splitlines()):
+        match = re.match(r"^(User|Customer|Caller|Agent|Assistant|AI|LINH):\s*(.*)$", line.strip(), re.I)
+        if not match or not match.group(2).strip():
+            continue
+        is_customer = re.search(r"user|customer|caller", match.group(1), re.I) is not None
+        turns.append(
+                {
+                    "id": f"turn-{index}",
+                    "speaker": "Khách hàng" if is_customer else "LinhVoice",
+                    "speakerType": "customer" if is_customer else "agent",
+                    "text": match.group(2).strip(),
+                    "start": None,
+                    "end": None,
+                }
+        )
+
+    return turns
+
+
+def normalize_call_cost_products(call: dict[str, Any]) -> list[dict[str, Any]]:
+    products = get_nested(call, "call_cost", "product_costs", default=[]) or []
+    normalized_products = []
+    if not isinstance(products, list):
+        return normalized_products
+
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+        normalized_products.append(
+            {
+                "name": format_retell_product_name(product.get("product")),
+                "cost": format_cost(product.get("cost")),
+                "unitPrice": format_cost(product.get("unit_price")),
+            }
+        )
+    return normalized_products
+
+
+def normalize_sentiment(value: Any) -> dict[str, str]:
+    sentiment = str(value or "").lower()
+    if sentiment == "positive":
+        return {"value": "positive", "label": "Tích cực"}
+    if sentiment == "negative":
+        return {"value": "negative", "label": "Tiêu cực"}
+    if sentiment == "neutral":
+        return {"value": "neutral", "label": "Trung tính"}
+    return {"value": "unknown", "label": "Chưa rõ"}
+
+
+def should_review_call(call: dict[str, Any]) -> bool:
+    analysis = call.get("call_analysis") or call.get("analysis") or {}
+    status = normalize_retell_status(call.get("call_status") or call.get("status"), call.get("disconnection_reason"))
+    disconnection_reason = str(call.get("disconnection_reason") or call.get("endedReason") or "").lower()
+    sentiment = str(analysis.get("user_sentiment") or "").lower()
+    return (
+        analysis.get("call_successful") is False
+        or status in {"missed", "unknown"}
+        or sentiment == "negative"
+        or any(reason in disconnection_reason for reason in ("error", "timeout", "dial_no_answer", "busy"))
+    )
+
+
+def average_latency_ms(call: dict[str, Any]) -> float:
+    latency = call.get("latency") or {}
+    if not isinstance(latency, dict):
+        return 0
+
+    values = []
+    for metric_name in ("e2e", "llm", "asr", "tts"):
+        metric = latency.get(metric_name) or {}
+        if isinstance(metric, dict) and metric.get("p50") is not None:
+            try:
+                values.append(float(metric.get("p50")))
+            except (TypeError, ValueError):
+                pass
+
+    return round(sum(values) / len(values), 1) if values else 0
+
+
 def infer_call_status(call: dict[str, Any]) -> str:
     status = str(call.get("status") or "").lower()
     ended_reason = str(call.get("endedReason") or "").lower()
@@ -669,9 +960,14 @@ def infer_call_status(call: dict[str, Any]) -> str:
 
 
 def normalize_call(call: dict[str, Any]) -> dict[str, Any]:
-    started_at = call.get("startedAt") or call.get("createdAt")
-    ended_at = call.get("endedAt")
+    started_at = call.get("startedAt") or call.get("createdAt") or retell_timestamp_to_iso(call.get("start_timestamp"))
+    ended_at = call.get("endedAt") or retell_timestamp_to_iso(call.get("end_timestamp"))
     duration_seconds = call.get("durationSeconds")
+    if duration_seconds is None and call.get("duration_ms") is not None:
+        try:
+            duration_seconds = float(call.get("duration_ms")) / 1000
+        except (TypeError, ValueError):
+            duration_seconds = 0
 
     if duration_seconds is None and started_at and ended_at:
         try:
@@ -681,33 +977,55 @@ def normalize_call(call: dict[str, Any]) -> dict[str, Any]:
         except (TypeError, ValueError):
             duration_seconds = 0
 
-    customer_number = get_nested(call, "customer", "number")
+    customer_number = (
+        get_nested(call, "customer", "number")
+        or call.get("to_number")
+        or call.get("from_number")
+    )
     assistant = call.get("assistant") or {}
     phone_number = (
         customer_number
         or get_nested(call, "phoneNumber", "number")
         or call.get("phoneNumber")
         or call.get("phoneNumberId")
+        or call.get("from_number")
+        or call.get("to_number")
         or "Unknown"
     )
-    assistant_name = get_nested(call, "assistant", "name") or call.get("assistantName") or "Unknown assistant"
+    assistant_name = (
+        get_nested(call, "assistant", "name")
+        or call.get("assistantName")
+        or call.get("agent_name")
+        or "Unknown assistant"
+    )
     transcript = get_nested(call, "artifact", "transcript") or call.get("transcript") or ""
-    summary = get_nested(call, "analysis", "summary") or call.get("summary") or "Chua co tom tat."
+    summary = (
+        get_nested(call, "analysis", "summary")
+        or get_nested(call, "call_analysis", "call_summary")
+        or call.get("summary")
+        or "Chua co tom tat."
+    )
     recording_url = (
         get_nested(call, "artifact", "recording", "stereoUrl")
         or get_nested(call, "artifact", "recording", "mono", "combinedUrl")
         or get_nested(call, "artifact", "recordingUrl")
         or call.get("recordingUrl")
+        or call.get("recording_url")
+        or call.get("recording_multi_channel_url")
     )
+    analysis = call.get("analysis") or call.get("call_analysis") or {}
+    sentiment = normalize_sentiment(analysis.get("user_sentiment"))
+    transcript_turns = normalize_transcript_turns(call)
+    successful = analysis.get("call_successful")
 
     return {
-        "id": call.get("id"),
+        "id": call.get("id") or call.get("call_id"),
         "orgId": call.get("orgId"),
         "phoneNumber": phone_number,
-        "phoneNumberId": call.get("phoneNumberId"),
+        "phoneNumberId": call.get("phoneNumberId") or call.get("from_number"),
         "customerName": get_nested(call, "customer", "name") or phone_number,
         "customerNumber": customer_number or phone_number,
-        "assistantId": call.get("assistantId") or assistant.get("id"),
+        "assistantId": call.get("assistantId") or assistant.get("id") or call.get("agent_id"),
         "assistantName": assistant_name,
         "duration": format_duration(duration_seconds),
         "durationSeconds": duration_seconds or 0,
@@ -715,17 +1033,34 @@ def normalize_call(call: dict[str, Any]) -> dict[str, Any]:
         "startedAt": format_iso_datetime(started_at),
         "endedAt": format_iso_datetime(ended_at),
         "timestamp": format_iso_datetime(started_at or call.get("createdAt")),
-        "status": infer_call_status(call),
-        "rawStatus": call.get("status"),
-        "endedReason": call.get("endedReason"),
-        "type": call.get("type") or "unknown",
-        "messageCount": len(get_nested(call, "artifact", "messages", default=[]) or []),
+        "status": normalize_retell_status(call.get("call_status") or call.get("status"), call.get("disconnection_reason")) if call.get("call_id") else infer_call_status(call),
+        "rawStatus": call.get("status") or call.get("call_status"),
+        "endedReason": call.get("endedReason") or call.get("disconnection_reason"),
+        "type": call.get("type") or call.get("call_type") or "unknown",
+        "messageCount": len(transcript_turns),
         "summary": summary,
         "transcript": transcript,
+        "transcriptTurns": transcript_turns,
         "recordingUrl": recording_url,
-        "cost": format_cost(call.get("cost")),
-        "costBreakdown": get_nested(call, "costBreakdown", default={}) or {},
-        "analysis": call.get("analysis") or {},
+        "recordingMultiChannelUrl": call.get("recording_multi_channel_url"),
+        "publicLogUrl": call.get("public_log_url"),
+        "knowledgeBaseRetrievedContentsUrl": call.get("knowledge_base_retrieved_contents_url"),
+        "cost": format_cost(call.get("cost") or get_nested(call, "call_cost", "combined_cost")),
+        "costBreakdown": get_nested(call, "costBreakdown", default={}) or call.get("call_cost") or {},
+        "costProducts": normalize_call_cost_products(call),
+        "analysis": analysis,
+        "sentiment": sentiment["value"],
+        "sentimentLabel": sentiment["label"],
+        "successful": successful,
+        "reviewRequired": should_review_call(call),
+        "intent": get_nested(analysis, "custom_analysis_data", "intent", default="") or "",
+        "direction": call.get("direction") or "",
+        "fromNumber": call.get("from_number") or "",
+        "toNumber": call.get("to_number") or "",
+        "latency": call.get("latency") or {},
+        "averageLatencyMs": average_latency_ms(call),
+        "retellMetadata": call.get("metadata") or {},
+        "dynamicVariables": call.get("retell_llm_dynamic_variables") or call.get("collected_dynamic_variables") or {},
         "artifact": call.get("artifact") or {},
         "raw": call,
     }
@@ -737,32 +1072,37 @@ def normalize_assistant(assistant: dict[str, Any]) -> dict[str, Any]:
     transcriber = assistant.get("transcriber") or {}
 
     return {
-        "id": assistant.get("id"),
-        "name": assistant.get("name") or "Unnamed assistant",
+        "id": assistant.get("id") or assistant.get("agent_id"),
+        "name": assistant.get("name") or assistant.get("agent_name") or "Unnamed assistant",
         "createdAt": format_iso_datetime(assistant.get("createdAt")),
-        "updatedAt": format_iso_datetime(assistant.get("updatedAt")),
-        "modelProvider": model.get("provider") or "",
-        "modelName": model.get("model") or "",
-        "voiceProvider": voice.get("provider") or "",
-        "voiceId": voice.get("voiceId") or voice.get("id") or "",
+        "updatedAt": format_iso_datetime(assistant.get("updatedAt")) or retell_timestamp_to_iso(assistant.get("last_modification_timestamp")),
+        "modelProvider": model.get("provider") or get_nested(assistant, "response_engine", "type") or "",
+        "modelName": model.get("model") or get_nested(assistant, "response_engine", "llm_id") or "",
+        "voiceProvider": voice.get("provider") or str(assistant.get("voice_id") or "").split("-", 1)[0],
+        "voiceId": voice.get("voiceId") or voice.get("id") or assistant.get("voice_id") or "",
         "transcriberProvider": transcriber.get("provider") or "",
-        "transcriberLanguage": transcriber.get("language") or "",
-        "firstMessage": assistant.get("firstMessage") or "",
-        "endCallMessage": assistant.get("endCallMessage") or "",
+        "transcriberLanguage": transcriber.get("language") or assistant.get("language") or "",
+        "firstMessage": assistant.get("firstMessage") or assistant.get("begin_message") or "",
+        "endCallMessage": assistant.get("endCallMessage") or assistant.get("end_call_message") or "",
         "raw": assistant,
     }
 
 
 def normalize_phone_number(phone_number: dict[str, Any]) -> dict[str, Any]:
+    inbound_binding = pick_retell_agent_binding(phone_number.get("inbound_agents"))
+    outbound_binding = pick_retell_agent_binding(phone_number.get("outbound_agents"))
+    binding = inbound_binding or outbound_binding
+    number = phone_number.get("number") or phone_number.get("phoneNumber") or phone_number.get("phone_number") or ""
+
     return {
-        "id": phone_number.get("id"),
-        "number": phone_number.get("number") or phone_number.get("phoneNumber") or "",
-        "name": phone_number.get("name") or phone_number.get("provider") or "Phone number",
-        "provider": phone_number.get("provider") or "",
-        "assistantId": phone_number.get("assistantId") or get_nested(phone_number, "assistant", "id"),
+        "id": phone_number.get("id") or number,
+        "number": number or phone_number.get("phone_number_pretty") or "",
+        "name": phone_number.get("name") or phone_number.get("nickname") or phone_number.get("provider") or "Phone number",
+        "provider": phone_number.get("provider") or phone_number.get("phone_number_type") or "",
+        "assistantId": phone_number.get("assistantId") or get_nested(phone_number, "assistant", "id") or binding.get("agent_id"),
         "assistantName": get_nested(phone_number, "assistant", "name") or "",
         "createdAt": format_iso_datetime(phone_number.get("createdAt")),
-        "updatedAt": format_iso_datetime(phone_number.get("updatedAt")),
+        "updatedAt": format_iso_datetime(phone_number.get("updatedAt")) or retell_timestamp_to_iso(phone_number.get("last_modification_timestamp")),
         "raw": phone_number,
     }
 
@@ -786,12 +1126,31 @@ def normalize_file(file: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def normalize_knowledge_base(knowledge_base: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": knowledge_base.get("knowledge_base_id"),
+        "name": knowledge_base.get("knowledge_base_name") or "Knowledge base",
+        "originalName": knowledge_base.get("knowledge_base_name") or "",
+        "status": "done" if knowledge_base.get("status") == "complete" else knowledge_base.get("status") or "",
+        "purpose": "knowledge_base",
+        "mimetype": "knowledge_base",
+        "bytes": sum((source.get("file_size") or 0) for source in knowledge_base.get("knowledge_base_sources") or []),
+        "parsedTextBytes": 0,
+        "url": "",
+        "parsedTextUrl": "",
+        "createdAt": retell_timestamp_to_iso(knowledge_base.get("last_refreshed_timestamp")),
+        "updatedAt": retell_timestamp_to_iso(knowledge_base.get("last_refreshed_timestamp")),
+        "metadata": {"sourceCount": len(knowledge_base.get("knowledge_base_sources") or [])},
+        "raw": knowledge_base,
+    }
+
+
 @app.get(f"{API_PREFIX}/voice/assistants")
 async def list_voice_assistants(
     limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
 ):
-    assistants = await voice_api_get(current_user, "/assistant", {"limit": limit})
+    assistants = await retell_api_request(current_user, "GET", "/list-agents")
     return [normalize_assistant(assistant) for assistant in assistants]
 
 
@@ -803,22 +1162,30 @@ async def list_voice_calls(
     created_at_le: str | None = Query(default=None, alias="createdAtLe"),
     current_user: User = Depends(get_current_user),
 ):
-    calls = await voice_api_get(
-        current_user,
-        "/call",
-        {
-            "limit": limit,
-            "assistantId": assistant_id,
-            "createdAtGe": created_at_ge,
-            "createdAtLe": created_at_le,
-        },
-    )
+    filter_criteria: dict[str, Any] = {}
+    if assistant_id:
+        filter_criteria["agent_id"] = [assistant_id]
+    if created_at_ge or created_at_le:
+        filter_criteria["start_timestamp"] = {}
+        if created_at_ge:
+            filter_criteria["start_timestamp"]["lower_threshold"] = iso_datetime_to_retell_timestamp(created_at_ge)
+        if created_at_le:
+            filter_criteria["start_timestamp"]["upper_threshold"] = iso_datetime_to_retell_timestamp(created_at_le)
+        filter_criteria["start_timestamp"] = {
+            key: value
+            for key, value in filter_criteria["start_timestamp"].items()
+            if value is not None
+        }
+        if not filter_criteria["start_timestamp"]:
+            filter_criteria.pop("start_timestamp")
+
+    calls = await retell_list_calls(current_user, limit=limit, filter_criteria=filter_criteria)
     return [normalize_call(call) for call in calls]
 
 
 @app.get(f"{API_PREFIX}/voice/calls/{{call_id}}")
 async def get_voice_call(call_id: str, current_user: User = Depends(get_current_user)):
-    call = await voice_api_get(current_user, f"/call/{call_id}")
+    call = await retell_api_request(current_user, "GET", f"/v2/get-call/{call_id}")
     return normalize_call(call)
 
 
@@ -827,14 +1194,18 @@ async def list_voice_phone_numbers(
     limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
 ):
-    phone_numbers = await voice_api_get(current_user, "/phone-number", {"limit": limit})
+    phone_numbers = await retell_api_list_all(current_user, "GET", "/v2/list-phone-numbers", limit=limit)
     return [normalize_phone_number(phone_number) for phone_number in phone_numbers]
 
 
 @app.get(f"{API_PREFIX}/voice/files")
 async def list_voice_files(current_user: User = Depends(get_current_user)):
-    files = await voice_api_get(current_user, "/file")
-    return [normalize_file(file) for file in files]
+    knowledge_bases = await retell_api_request(current_user, "GET", "/list-knowledge-bases")
+    files = []
+    for knowledge_base in knowledge_bases:
+        sources = normalize_knowledge_base_sources(knowledge_base)
+        files.extend(sources or [normalize_knowledge_base(knowledge_base)])
+    return files
 
 
 @app.post(f"{API_PREFIX}/voice/files")
@@ -852,21 +1223,22 @@ async def update_voice_assistant(
     payload: dict[str, Any],
     current_user: User = Depends(get_current_user),
 ):
-    allowed_fields = {
-        "name",
-        "firstMessage",
-        "endCallMessage",
-        "model",
-        "voice",
-        "transcriber",
-        "metadata",
+    field_map = {
+        "name": "agent_name",
+        "voiceId": "voice_id",
+        "language": "language",
+        "metadata": "metadata",
     }
-    safe_payload = {key: value for key, value in payload.items() if key in allowed_fields}
+    safe_payload = {
+        field_map[key]: value
+        for key, value in payload.items()
+        if key in field_map
+    }
 
     if not safe_payload:
         raise HTTPException(status_code=400, detail="Khong co truong hop le de cap nhat assistant")
 
-    assistant = await voice_api_patch(current_user, f"/assistant/{assistant_id}", safe_payload)
+    assistant = await retell_api_request(current_user, "PATCH", f"/update-agent/{assistant_id}", payload=safe_payload)
     return normalize_assistant(assistant)
 
 
@@ -876,13 +1248,24 @@ async def update_voice_phone_number(
     payload: dict[str, Any],
     current_user: User = Depends(get_current_user),
 ):
-    allowed_fields = {"assistantId", "name", "server"}
-    safe_payload = {key: value for key, value in payload.items() if key in allowed_fields}
+    safe_payload: dict[str, Any] = {}
+    if "assistantId" in payload:
+        assistant_id = payload.get("assistantId")
+        agent_bindings = [{"agent_id": assistant_id, "weight": 1}] if assistant_id else None
+        safe_payload["inbound_agents"] = agent_bindings
+        safe_payload["outbound_agents"] = agent_bindings
+    if "name" in payload:
+        safe_payload["nickname"] = payload.get("name")
 
     if not safe_payload:
         raise HTTPException(status_code=400, detail="Khong co truong hop le de cap nhat phone number")
 
-    phone_number = await voice_api_patch(current_user, f"/phone-number/{phone_number_id}", safe_payload)
+    phone_number = await retell_api_request(
+        current_user,
+        "PATCH",
+        f"/update-phone-number/{phone_number_id}",
+        payload=safe_payload,
+    )
     return normalize_phone_number(phone_number)
 
 
@@ -891,21 +1274,38 @@ async def get_voice_dashboard(
     limit: int = Query(50, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
 ):
-    calls = [normalize_call(call) for call in await voice_api_get(current_user, "/call", {"limit": limit})]
-    assistants = [normalize_assistant(assistant) for assistant in await voice_api_get(current_user, "/assistant", {"limit": 100})]
+    calls = [normalize_call(call) for call in await retell_list_calls(current_user, limit=limit)]
+    assistants = [
+        normalize_assistant(assistant)
+        for assistant in await retell_api_request(current_user, "GET", "/list-agents")
+    ]
     phone_numbers = [
         normalize_phone_number(phone_number)
-        for phone_number in await voice_api_get(current_user, "/phone-number", {"limit": 100})
+        for phone_number in await retell_api_list_all(current_user, "GET", "/v2/list-phone-numbers", limit=100)
     ]
-    files = [normalize_file(file) for file in await voice_api_get(current_user, "/file")]
+    knowledge_bases = await retell_api_request(current_user, "GET", "/list-knowledge-bases")
+    files = []
+    for knowledge_base in knowledge_bases:
+        sources = normalize_knowledge_base_sources(knowledge_base)
+        files.extend(sources or [normalize_knowledge_base(knowledge_base)])
 
     completed = sum(1 for call in calls if call["status"] == "completed")
     active = sum(1 for call in calls if call["status"] == "active")
     missed = sum(1 for call in calls if call["status"] == "missed")
     transferred = sum(1 for call in calls if call["status"] == "transferred")
+    successful = sum(1 for call in calls if call.get("successful") is True)
+    review_required = sum(1 for call in calls if call.get("reviewRequired"))
+    inbound = sum(1 for call in calls if call.get("direction") == "inbound")
+    outbound = sum(1 for call in calls if call.get("direction") == "outbound")
+    web_calls = sum(1 for call in calls if call.get("type") == "web_call")
     total_cost = sum(float(call.get("cost") or 0) for call in calls)
     average_duration = (
         sum(float(call.get("durationSeconds") or 0) for call in calls) / len(calls)
+        if calls
+        else 0
+    )
+    average_latency = (
+        sum(float(call.get("averageLatencyMs") or 0) for call in calls) / len(calls)
         if calls
         else 0
     )
@@ -917,9 +1317,15 @@ async def get_voice_dashboard(
             "activeCalls": active,
             "missedCalls": missed,
             "transferredCalls": transferred,
+            "successfulCalls": successful,
+            "reviewRequiredCalls": review_required,
+            "inboundCalls": inbound,
+            "outboundCalls": outbound,
+            "webCalls": web_calls,
             "averageDuration": format_duration(average_duration),
-            "successRate": round((completed / len(calls)) * 100, 1) if calls else 0,
+            "successRate": round((successful / len(calls)) * 100, 1) if calls else 0,
             "totalCost": round(total_cost, 4),
+            "averageLatencyMs": round(average_latency, 1),
             "assistantCount": len(assistants),
             "phoneNumberCount": len(phone_numbers),
             "fileCount": len(files),

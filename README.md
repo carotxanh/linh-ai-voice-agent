@@ -1,12 +1,12 @@
 # LINH AI - LinhVoice
 
-AI voice agent dashboard for managing calls, assistants, phone numbers, files, and per-account voice API credentials.
+AI voice agent dashboard for managing Retell AI calls, agents, phone numbers, knowledge base files, and per-account API credentials.
 
 ## Architecture
 
 ```text
 linh-ai-voice-agent/
-├── backend/                 # FastAPI, JWT auth, PostgreSQL/Supabase, voice API proxy
+├── backend/                 # FastAPI, JWT auth, PostgreSQL/Supabase, Retell AI proxy
 ├── frontend/                # React + Vite dashboard
 ├── docker-compose.yml       # Local build compose
 └── docker-compose.prod.yml  # VPS compose using prebuilt images
@@ -19,7 +19,7 @@ https://linhvoice.io.vn/      -> 127.0.0.1:8080 -> frontend container
 https://linhvoice.io.vn/api/  -> 127.0.0.1:8000 -> backend container
 ```
 
-Each LinhVoice account stores its own encrypted voice API key in the database. Do not configure a shared `VOICE_API_KEY` in `.env`.
+Each LinhVoice account stores its own encrypted Retell API key in the database. Do not configure a shared `VOICE_API_KEY` in `.env`.
 
 ## Environment
 
@@ -36,7 +36,8 @@ JWT_SECRET_KEY=replace_with_a_long_random_secret_at_least_32_chars
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 DATA_ENCRYPTION_KEY=paste_generated_fernet_key_here
-VOICE_API_BASE_URL=https://api.vapi.ai
+VOICE_API_BASE_URL=https://api.retellai.com
+RETELL_KNOWLEDGE_BASE_ID=
 CONTACT_EMAIL_RECIPIENT=linhvoice29@gmail.com
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -100,7 +101,7 @@ Run from `backend/`:
 python scripts\create_user.py --email owner@company.com --full-name "Company Owner"
 ```
 
-The script asks for password and voice API key using hidden prompts. The voice key is encrypted and stored on that user, not in `.env`.
+The script asks for password and Retell API key using hidden prompts. The API key is encrypted and stored on that user, not in `.env`.
 
 ## Docker Deployment Model
 

@@ -240,7 +240,7 @@ export default function Settings() {
                   <div className="setting-item">
                     <div className="setting-info">
                       <h3>Địa chỉ API thoại</h3>
-                      <p>Base URL của dịch vụ thoại, ví dụ https://api.vapi.ai. Cần có giá trị này để tải cuộc gọi, trợ lý AI và tài liệu.</p>
+                      <p>Base URL của Retell AI, ví dụ https://api.retellai.com. Cần có giá trị này để tải cuộc gọi, trợ lý AI và tài liệu.</p>
                     </div>
                     <div className="setting-stack">
                       <input
@@ -248,7 +248,7 @@ export default function Settings() {
                         className="setting-input"
                         value={connection.apiBaseUrl}
                         onChange={(event) => setConnection((current) => ({ ...current, apiBaseUrl: event.target.value }))}
-                        placeholder="https://api.vapi.ai"
+                        placeholder="https://api.retellai.com"
                       />
                     </div>
                   </div>

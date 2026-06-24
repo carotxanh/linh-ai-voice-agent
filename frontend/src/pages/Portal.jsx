@@ -26,7 +26,13 @@ const emptyDashboard = {
     activeCalls: 0,
     transferredCalls: 0,
     missedCalls: 0,
+    successfulCalls: 0,
+    reviewRequiredCalls: 0,
+    inboundCalls: 0,
+    outboundCalls: 0,
+    webCalls: 0,
     averageDuration: '0:00',
+    averageLatencyMs: 0,
     successRate: 0,
     totalCost: 0,
     assistantCount: 0,
@@ -62,6 +68,35 @@ function statusLabel(status) {
   return status || 'Không rõ'
 }
 
+function callOutcome(call) {
+  if (call.successful === true) return { text: 'Thành công', tone: 'success', icon: 'check_circle' }
+  if (call.reviewRequired || call.successful === false) return { text: 'Cần xem lại', tone: 'warning', icon: 'priority_high' }
+  return { text: statusLabel(call.status), tone: call.status === 'completed' ? 'info' : 'warning', icon: call.status === 'completed' ? 'call' : 'warning' }
+}
+
+function hasVietnameseText(value = '') {
+  return /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(value)
+}
+
+function vietnamizeSummary(value) {
+  if (!value) return ''
+  if (hasVietnameseText(value)) return value
+
+  return [
+    [/\bthe agent\b/gi, 'LinhVoice'],
+    [/\bagent\b/gi, 'LinhVoice'],
+    [/\bthe user\b/gi, 'khách hàng'],
+    [/\bthe customer\b/gi, 'khách hàng'],
+    [/\buser\b/gi, 'khách hàng'],
+    [/\bcustomer\b/gi, 'khách hàng'],
+    [/\bcalled\b/gi, 'đã gọi'],
+    [/\basked\b/gi, 'đã hỏi'],
+    [/\bagreed\b/gi, 'đồng ý'],
+    [/\bscheduled\b/gi, 'đã đặt lịch'],
+    [/\bappointment\b/gi, 'lịch hẹn'],
+  ].reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value)
+}
+
 export default function Portal() {
   const navigate = useNavigate()
   const [dashboard, setDashboard] = useState(emptyDashboard)
@@ -81,7 +116,7 @@ export default function Portal() {
         setDashboard(emptyDashboard)
         setDataSource('error')
         setNeedsConnection(true)
-        setLoadError(integration.message || 'Tài khoản chưa có khóa kết nối hoặc địa chỉ API thoại. Vui lòng cấu hình trong Thiết lập')
+        setLoadError(integration.message || 'Tài khoản chưa có Retell API key. Vào Settings để kết nối.')
         return
       }
 
@@ -106,27 +141,28 @@ export default function Portal() {
       label: 'Tổng cuộc gọi',
       value: dashboard.stats.totalCalls,
       icon: 'call',
-      change: `${dashboard.stats.completedCalls} hoàn tất, ${dashboard.stats.activeCalls} đang xử lý`,
+      change: `${dashboard.stats.completedCalls} hoàn tất, ${dashboard.stats.activeCalls} Đang xử lý`,
+      positive: true,
+    },
+    {
+      label: 'Kết quả tot',
+      value: `${dashboard.stats.successRate}%`,
+      icon: 'task_alt',
+      change: `${dashboard.stats.successfulCalls || 0} thành công, ${dashboard.stats.reviewRequiredCalls || 0} cần xem lại`,
       positive: true,
     },
     {
       label: 'Thời lượng TB',
       value: dashboard.stats.averageDuration,
       icon: 'timer',
-      change: `${dashboard.stats.successRate}% hoàn tất`,
+      change: `${dashboard.stats.averageLatencyMs || 0} ms Độ trễ TB`,
       positive: true,
     },
     {
-      label: 'Chi phí cuộc gọi',
+      label: 'Chi phí Retell',
       value: formatCost(dashboard.stats.totalCost),
       icon: 'payments',
-      change: 'Từ các cuộc gọi đã đồng bộ',
-    },
-    {
-      label: 'Cấu hình đang dùng',
-      value: dashboard.stats.assistantCount,
-      icon: 'hub',
-      change: `${dashboard.stats.phoneNumberCount} hotline, ${dashboard.stats.fileCount} tài liệu`,
+      change: `${dashboard.stats.inboundCalls || 0} inbound, ${dashboard.stats.outboundCalls || 0} outbound`,
     },
   ], [dashboard])
 
@@ -138,14 +174,14 @@ export default function Portal() {
             <RippleText>
               <h1>LinhVoice</h1>
             </RippleText>
-            <p className="portal-subtitle">Tổng quan vận hành cuộc gọi, trợ lý AI, hotline và kho dữ liệu doanh nghiệp.</p>
+            <p className="portal-subtitle">Tong quan cuộc gọi Retell, ket qua khách hàng, LinhVoice AI, hotline va kho du lieu dang dung.</p>
           </div>
           <div className="portal-header-actions">
             <span className={`portal-api-note ${dataSource === 'live' ? 'live' : ''}`}>
-              {dataSource === 'live' ? 'Đã kết nối' : 'Chưa kết nối'}
+              {dataSource === 'live' ? 'Đã kết nối Retell' : 'Chưa kết nối'}
             </span>
             <button className="btn-secondary" onClick={loadDashboard} disabled={isLoading}>
-              {isLoading ? 'Đang cập nhật' : 'Cập nhật'}
+              {isLoading ? 'Đang cập nhật' : 'Làm mới'}
             </button>
           </div>
         </div>
@@ -156,7 +192,7 @@ export default function Portal() {
             <span>Không thể tải dữ liệu tổng quan: {loadError}.</span>
             {needsConnection && (
               <button type="button" className="api-alert-action" onClick={() => navigate('/settings')}>
-                Mở thiết lập
+                Mở Settings
               </button>
             )}
           </div>
@@ -181,26 +217,29 @@ export default function Portal() {
           <div className="content-card">
             <div className="card-header">
               <RippleText>
-                <h3>Cuộc gọi gần đây</h3>
+                <h3>Cuộc gọi gan day</h3>
               </RippleText>
               <button className="btn-text" onClick={() => navigate('/call-history')}>Xem tất cả</button>
             </div>
             <div className="activity-list">
-              {dashboard.recentCalls.length > 0 ? dashboard.recentCalls.map((call) => (
-                <div className="activity-item" key={call.id}>
-                  <div className={`activity-icon ${call.status === 'completed' ? 'success' : 'warning'}`}>
-                    <MIcon name={call.status === 'completed' ? 'call' : 'warning'} size={18} />
-                  </div>
-                  <div className="activity-content">
-                    <p className="activity-title">{call.assistantName || 'Trợ lý AI'} gọi {call.phoneNumber}</p>
-                    <p className="activity-time">{formatDateTime(call.timestamp)} · {call.endedReason || statusLabel(call.status)}</p>
-                  </div>
-                  <span className={`activity-badge ${call.status === 'completed' ? 'success' : 'warning'}`}>
-                    {formatCost(call.cost)}
-                  </span>
-                </div>
-              )) : (
-                <p className="portal-empty-note">Chưa có cuộc gọi nào được ghi nhận.</p>
+              {dashboard.recentCalls.length > 0 ? dashboard.recentCalls.map((call) => {
+                const outcome = callOutcome(call)
+                return (
+                  <button className="activity-item clickable" key={call.id} onClick={() => navigate('/call-history')}>
+                    <div className={`activity-icon ${outcome.tone}`}>
+                      <MIcon name={outcome.icon} size={18} />
+                    </div>
+                    <div className="activity-content">
+                      <p className="activity-title">{call.assistantName || 'LinhVoice'} với {call.customerNumber || call.phoneNumber || 'khách hàng'}</p>
+                      <p className="activity-time">{formatDateTime(call.timestamp)} ? {call.summary ? vietnamizeSummary(call.summary) : (call.endedReason || statusLabel(call.status))}</p>
+                    </div>
+                    <span className={`activity-badge ${outcome.tone}`}>
+                      {outcome.text}
+                    </span>
+                  </button>
+                )
+              }) : (
+                <p className="portal-empty-note">Chưa có cuộc gọi nao duoc ghi nhan.</p>
               )}
             </div>
           </div>
@@ -208,7 +247,7 @@ export default function Portal() {
           <div className="content-card">
             <div className="card-header">
               <RippleText>
-                <h3>Trợ lý AI</h3>
+                <h3>LinhVoice</h3>
               </RippleText>
               <button className="btn-text" onClick={() => navigate('/settings')}>Thiết lập</button>
             </div>
@@ -220,11 +259,11 @@ export default function Portal() {
                     <span className="performance-value">{assistant.modelName || assistant.modelProvider || '-'}</span>
                   </div>
                   <div className="stat-change">
-                    Giọng nói: {assistant.voiceProvider || '-'} · Nhận diện: {assistant.transcriberLanguage || '-'}
+                    Voice: {assistant.voiceProvider || '-'} ? Language: {assistant.transcriberLanguage || '-'}
                   </div>
                 </div>
               ))}
-              {dashboard.assistants.length === 0 && <p className="portal-empty-note">Chưa có trợ lý AI nào.</p>}
+              {dashboard.assistants.length === 0 && <p className="portal-empty-note">Chưa có LinhVoice AI nao.</p>}
             </div>
           </div>
         </div>
@@ -244,18 +283,18 @@ export default function Portal() {
                   </div>
                   <div className="activity-content">
                     <p className="activity-title">{phoneNumber.number || phoneNumber.name}</p>
-                    <p className="activity-time">{phoneNumber.assistantName || phoneNumber.assistantId || 'Chưa gán trợ lý AI'}</p>
+                    <p className="activity-time">{phoneNumber.assistantName || phoneNumber.assistantId || 'Chưa gán LinhVoice'}</p>
                   </div>
                 </div>
               ))}
-              {dashboard.phoneNumbers.length === 0 && <p className="portal-empty-note">Chưa có hotline nào được kết nối.</p>}
+              {dashboard.phoneNumbers.length === 0 && <p className="portal-empty-note">Chưa có hotline nao duoc ket noi.</p>}
             </div>
           </div>
 
           <div className="content-card">
             <div className="card-header">
               <RippleText>
-                <h3>Xử lý dữ liệu</h3>
+                <h3>Dữ liệu và cảnh báo</h3>
               </RippleText>
               <button className="btn-text" onClick={() => navigate('/knowledge')}>Mở kho dữ liệu</button>
             </div>
@@ -279,10 +318,10 @@ export default function Portal() {
               <div className="performance-item">
                 <div className="performance-label">
                   <span>Cuộc gọi cần xem lại</span>
-                  <span className="performance-value">{dashboard.stats.transferredCalls + dashboard.stats.missedCalls}</span>
+                  <span className="performance-value">{dashboard.stats.reviewRequiredCalls || 0}</span>
                 </div>
                 <div className="stat-change">
-                  {dashboard.stats.transferredCalls} chuyển tiếp, {dashboard.stats.missedCalls} nhỡ
+                  {dashboard.stats.missedCalls} nhỡ, {dashboard.stats.transferredCalls} chuyển tiếp, {dashboard.stats.webCalls || 0} web call
                 </div>
               </div>
             </div>
