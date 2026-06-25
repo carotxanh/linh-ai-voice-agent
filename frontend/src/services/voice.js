@@ -93,6 +93,9 @@ export function updateVoicePhoneNumber(phoneNumberId, payload) {
   })
 }
 
-export function getElevenLabsConversationToken() {
-  return apiFetch('/elevenlabs/conversation-token')
+export function createRetellDemoCall() {
+  return apiFetch('/retell/demo-call', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
 }

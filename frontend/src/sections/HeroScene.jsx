@@ -1,24 +1,51 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion as Motion } from 'framer-motion'
-import { useConversationControls, useConversationStatus } from '@elevenlabs/react'
+import { RetellWebClient } from 'retell-client-js-sdk'
 import AnimatedText from '../components/AnimatedText'
 import SceneWrapper from '../components/SceneWrapper'
 import { IconCall } from '../components/Icons'
 import { fadeUp } from '../data/animations'
-import { getElevenLabsConversationToken } from '../services/voice'
+import { createRetellDemoCall } from '../services/voice'
 
 export default function HeroScene({ onCta, onAuth }) {
-  const { startSession, endSession } = useConversationControls()
-  const { status: conversationStatus } = useConversationStatus()
+  const retellClientRef = useRef(null)
   const [demoCallStatus, setDemoCallStatus] = useState('idle')
   const [demoCallMessage, setDemoCallMessage] = useState('')
   const badges = ['Trực 24/7', 'Giọng Việt tự nhiên', 'Chuyển người thật khi cần']
-  const isDemoBusy = demoCallStatus === 'requesting' || demoCallStatus === 'connecting' || conversationStatus === 'connecting'
-  const isDemoConnected = conversationStatus === 'connected'
+  const isDemoBusy = demoCallStatus === 'requesting' || demoCallStatus === 'connecting'
+  const isDemoConnected = demoCallStatus === 'connected'
+
+  useEffect(() => {
+    const client = new RetellWebClient()
+    retellClientRef.current = client
+
+    client.on('call_started', () => {
+      setDemoCallStatus('connected')
+      setDemoCallMessage('Demo đang kết nối. Hãy nói thử với agent.')
+    })
+    client.on('call_ready', () => {
+      setDemoCallStatus('connected')
+      setDemoCallMessage('Demo đã sẵn sàng. Bạn có thể nói ngay.')
+    })
+    client.on('call_ended', () => {
+      setDemoCallStatus('idle')
+      setDemoCallMessage('Đã kết thúc demo.')
+    })
+    client.on('error', (message) => {
+      setDemoCallStatus('error')
+      setDemoCallMessage(message || 'Không kết nối được Retell AI.')
+    })
+
+    return () => {
+      client.stopCall()
+      client.removeAllListeners()
+      retellClientRef.current = null
+    }
+  }, [])
 
   const handleDemoCall = async () => {
     if (isDemoConnected) {
-      endSession()
+      retellClientRef.current?.stopCall()
       setDemoCallStatus('idle')
       setDemoCallMessage('Đã kết thúc demo.')
       return
@@ -31,28 +58,19 @@ export default function HeroScene({ onCta, onAuth }) {
       const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true })
       permissionStream.getTracks().forEach((track) => track.stop())
 
-      const { token } = await getElevenLabsConversationToken()
+      const { accessToken } = await createRetellDemoCall()
+      if (!accessToken) {
+        throw new Error('Retell AI chưa trả access token cho web call.')
+      }
+
       setDemoCallStatus('connecting')
-      setDemoCallMessage('Đang kết nối demo...')
-      startSession({
-        conversationToken: token,
-        connectionType: 'webrtc',
-        onConnect: () => {
-          setDemoCallStatus('connected')
-          setDemoCallMessage('Demo đang kết nối. Hãy nói thử với agent.')
-        },
-        onDisconnect: () => {
-          setDemoCallStatus('idle')
-          setDemoCallMessage('Đã kết thúc demo.')
-        },
-        onError: (message) => {
-          setDemoCallStatus('error')
-          setDemoCallMessage(message || 'Không kết nối được ElevenLabs.')
-        },
+      setDemoCallMessage('Đang kết nối demo Retell...')
+      await retellClientRef.current.startCall({
+        accessToken,
       })
     } catch (error) {
       setDemoCallStatus('error')
-      setDemoCallMessage(error.message || 'Chưa mở được demo. Vui lòng kiểm tra ElevenLabs.')
+      setDemoCallMessage(error.message || 'Chưa mở được demo. Vui lòng kiểm tra Retell AI.')
     }
   }
 
