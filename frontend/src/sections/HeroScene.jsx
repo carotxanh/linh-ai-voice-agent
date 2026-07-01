@@ -7,10 +7,18 @@ import { IconCall } from '../components/Icons'
 import { fadeUp } from '../data/animations'
 import { createRetellDemoCall } from '../services/voice'
 
+const demoVoiceOptions = [
+  { id: 'nha-xe', label: 'Nhà Xe' },
+  { id: 'nha-hang', label: 'Nhà Hàng' },
+  { id: 'khach-san', label: 'Khách Sạn' },
+]
+
 export default function HeroScene({ onCta, onAuth }) {
   const retellClientRef = useRef(null)
   const [demoCallStatus, setDemoCallStatus] = useState('idle')
   const [demoCallMessage, setDemoCallMessage] = useState('')
+  const [selectedDemoVoice, setSelectedDemoVoice] = useState(demoVoiceOptions[0].id)
+  const selectedDemoIndex = demoVoiceOptions.findIndex((option) => option.id === selectedDemoVoice)
   const badges = ['Trực 24/7', 'Giọng Việt tự nhiên', 'Chuyển người thật khi cần']
   const isDemoBusy = demoCallStatus === 'requesting' || demoCallStatus === 'connecting'
   const isDemoConnected = demoCallStatus === 'connected'
@@ -58,7 +66,7 @@ export default function HeroScene({ onCta, onAuth }) {
       const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true })
       permissionStream.getTracks().forEach((track) => track.stop())
 
-      const { accessToken } = await createRetellDemoCall()
+      const { accessToken } = await createRetellDemoCall(selectedDemoVoice)
       if (!accessToken) {
         throw new Error('Retell AI chưa trả access token cho web call.')
       }
@@ -98,17 +106,54 @@ export default function HeroScene({ onCta, onAuth }) {
             </Motion.button>
           </Motion.div>
           <Motion.div variants={fadeUp} className="demo-call hero-demo-call">
-            <Motion.button
-              type="button"
-              className="demo-call-button"
-              whileHover={{ scale: isDemoBusy ? 1 : 1.04 }}
-              whileTap={{ scale: isDemoBusy ? 1 : 0.98 }}
-              onClick={handleDemoCall}
-              disabled={isDemoBusy}
-            >
-              <span className="demo-call-icon"><IconCall /></span>
-              {isDemoConnected ? 'KẾT THÚC DEMO' : isDemoBusy ? 'ĐANG KẾT NỐI...' : 'GỌI DEMO'}
-            </Motion.button>
+            <div className="demo-call-card">
+              <div
+                className="demo-call-picker"
+                style={{ '--active-demo-row': selectedDemoIndex >= 0 ? selectedDemoIndex : 0 }}
+                aria-label="Chọn kịch bản gọi demo"
+              >
+                <div className="demo-call-options" role="tablist" aria-label="Chọn ngành">
+                  {demoVoiceOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`demo-call-option ${selectedDemoVoice === option.id ? 'active' : ''}`}
+                      onClick={() => setSelectedDemoVoice(option.id)}
+                      disabled={isDemoBusy || isDemoConnected}
+                      role="tab"
+                      aria-selected={selectedDemoVoice === option.id}
+                    >
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <svg className="demo-call-connector" viewBox="0 0 240 150" aria-hidden="true">
+                  {selectedDemoVoice === 'nha-xe' ? (
+                    <path className="connector-path active" d="M0 34 C40 34 28 75 74 75 L218 75" />
+                  ) : null}
+                  {selectedDemoVoice === 'nha-hang' ? (
+                    <path className="connector-path active" d="M0 75 L218 75" />
+                  ) : null}
+                  {selectedDemoVoice === 'khach-san' ? (
+                    <path className="connector-path active" d="M0 116 C40 116 28 75 74 75 L218 75" />
+                  ) : null}
+                </svg>
+                <div className="demo-call-action">
+                  <div className="demo-call-orb" aria-hidden="true" />
+                  <Motion.button
+                    type="button"
+                    className="demo-call-button"
+                    whileHover={{ scale: isDemoBusy ? 1 : 1.04 }}
+                    whileTap={{ scale: isDemoBusy ? 1 : 0.98 }}
+                    onClick={handleDemoCall}
+                    disabled={isDemoBusy}
+                  >
+                    <span className="demo-call-icon"><IconCall /></span>
+                    {isDemoConnected ? 'KẾT THÚC DEMO' : isDemoBusy ? 'ĐANG KẾT NỐI...' : 'GỌI DEMO'}
+                  </Motion.button>
+                </div>
+              </div>
+            </div>
             {demoCallMessage ? (
               <p className={`demo-call-status ${demoCallStatus}`}>
                 {demoCallMessage}

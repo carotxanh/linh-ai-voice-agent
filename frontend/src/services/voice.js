@@ -93,9 +93,9 @@ export function updateVoicePhoneNumber(phoneNumberId, payload) {
   })
 }
 
-export function createRetellDemoCall() {
+export function createRetellDemoCall(demoType) {
   return apiFetch('/retell/demo-call', {
     method: 'POST',
-    body: JSON.stringify({}),
+    body: JSON.stringify({ demoType }),
   })
 }

@@ -1,8 +1,31 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const DEMO_AGENT_ENV_BY_TYPE = {
+  'nha-xe': 'VITE_RETELL_AGENT_ID_NHA_XE',
+  'nha-hang': 'VITE_RETELL_AGENT_ID_NHA_HANG',
+  'khach-san': 'VITE_RETELL_AGENT_ID_KHACH_SAN',
+}
+
 function isMissingRetellEnv(value, placeholderName) {
   return !value || value === placeholderName || value.startsWith('YOUR_')
+}
+
+function readJsonBody(request) {
+  return new Promise((resolve) => {
+    let body = ''
+    request.on('data', (chunk) => {
+      body += chunk
+    })
+    request.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {})
+      } catch {
+        resolve({})
+      }
+    })
+    request.on('error', () => resolve({}))
+  })
 }
 
 async function retellRequest(path, apiKey, options = {}) {
@@ -24,6 +47,17 @@ async function retellRequest(path, apiKey, options = {}) {
   }
 
   return responseBody
+}
+
+function resolveConfiguredDemoAgentId(env, demoType) {
+  const selectedEnvName = DEMO_AGENT_ENV_BY_TYPE[demoType]
+  const selectedAgentId = selectedEnvName ? env[selectedEnvName] : ''
+
+  if (selectedEnvName && !isMissingRetellEnv(selectedAgentId, selectedEnvName)) {
+    return selectedAgentId
+  }
+
+  return env.VITE_RETELL_AGENT_ID || env.RETELL_AGENT_ID
 }
 
 async function resolveRetellAgentId(apiKey, configuredAgentId) {
@@ -67,7 +101,6 @@ function retellDemoCallMiddleware(env) {
         }
 
         const apiKey = env.RETELL_API_KEY || env.VITE_RETELL_API_KEY
-        const configuredAgentId = env.VITE_RETELL_AGENT_ID || env.RETELL_AGENT_ID
 
         if (isMissingRetellEnv(apiKey, 'RETELL_API_KEY')) {
           response.statusCode = 501
@@ -77,6 +110,9 @@ function retellDemoCallMiddleware(env) {
         }
 
         try {
+          const requestBody = await readJsonBody(request)
+          const demoType = requestBody.demoType || 'nha-xe'
+          const configuredAgentId = resolveConfiguredDemoAgentId(env, demoType)
           const agentId = await resolveRetellAgentId(apiKey, configuredAgentId)
           const responseBody = await retellRequest('/v2/create-web-call', apiKey, {
             method: 'POST',
@@ -84,6 +120,7 @@ function retellDemoCallMiddleware(env) {
               agent_id: agentId,
               metadata: {
                 source: 'linhvoice_demo',
+                demo_type: demoType,
               },
             }),
           })
