@@ -27,7 +27,7 @@ async function apiFetch(path, options = {}) {
   return response.json()
 }
 
-export function getVoiceDashboard(limit = 50) {
+export function getVoiceDashboard(limit = 100) {
   return apiFetch(`/voice/dashboard?limit=${limit}`)
 }
 

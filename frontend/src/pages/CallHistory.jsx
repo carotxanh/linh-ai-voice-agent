@@ -391,10 +391,6 @@ export default function CallHistory() {
               <span className="sidebar-value">{selectedCall.id}</span>
             </div>
             <div className="sidebar-info-row">
-              <span className="sidebar-label">Mã LinhVoice</span>
-              <span className="sidebar-value">{selectedCall.assistantId || '-'}</span>
-            </div>
-            <div className="sidebar-info-row">
               <span className="sidebar-label">Hướng gọi</span>
               <span className="sidebar-value">{selectedCall.direction || '-'}</span>
             </div>
@@ -760,7 +756,6 @@ export default function CallHistory() {
                       </div>
                       <div className="sidebar-customer-info">
                         <span className="sidebar-customer-name">{selectedCall.assistantName || 'LinhVoice'}</span>
-                        <span className="sidebar-customer-phone">{selectedCall.assistantId || '-'}</span>
                       </div>
                     </div>
                   </div>

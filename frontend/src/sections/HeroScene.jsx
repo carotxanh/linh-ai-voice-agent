@@ -15,13 +15,20 @@ const demoVoiceOptions = [
 
 export default function HeroScene({ onCta, onAuth }) {
   const retellClientRef = useRef(null)
+  const demoResetTimerRef = useRef(null)
   const [demoCallStatus, setDemoCallStatus] = useState('idle')
-  const [demoCallMessage, setDemoCallMessage] = useState('')
   const [selectedDemoVoice, setSelectedDemoVoice] = useState(demoVoiceOptions[0].id)
   const selectedDemoIndex = demoVoiceOptions.findIndex((option) => option.id === selectedDemoVoice)
   const badges = ['Trực 24/7', 'Giọng Việt tự nhiên', 'Chuyển người thật khi cần']
   const isDemoBusy = demoCallStatus === 'requesting' || demoCallStatus === 'connecting'
   const isDemoConnected = demoCallStatus === 'connected'
+
+  const resetDemoStatusSoon = () => {
+    window.clearTimeout(demoResetTimerRef.current)
+    demoResetTimerRef.current = window.setTimeout(() => {
+      setDemoCallStatus('idle')
+    }, 1200)
+  }
 
   useEffect(() => {
     const client = new RetellWebClient()
@@ -29,22 +36,21 @@ export default function HeroScene({ onCta, onAuth }) {
 
     client.on('call_started', () => {
       setDemoCallStatus('connected')
-      setDemoCallMessage('Demo đang kết nối. Hãy nói thử với agent.')
     })
     client.on('call_ready', () => {
       setDemoCallStatus('connected')
-      setDemoCallMessage('Demo đã sẵn sàng. Bạn có thể nói ngay.')
     })
     client.on('call_ended', () => {
-      setDemoCallStatus('idle')
-      setDemoCallMessage('Đã kết thúc demo.')
+      setDemoCallStatus('ended')
+      resetDemoStatusSoon()
     })
-    client.on('error', (message) => {
+    client.on('error', () => {
       setDemoCallStatus('error')
-      setDemoCallMessage(message || 'Không kết nối được Retell AI.')
+      resetDemoStatusSoon()
     })
 
     return () => {
+      window.clearTimeout(demoResetTimerRef.current)
       client.stopCall()
       client.removeAllListeners()
       retellClientRef.current = null
@@ -54,13 +60,12 @@ export default function HeroScene({ onCta, onAuth }) {
   const handleDemoCall = async () => {
     if (isDemoConnected) {
       retellClientRef.current?.stopCall()
-      setDemoCallStatus('idle')
-      setDemoCallMessage('Đã kết thúc demo.')
+      setDemoCallStatus('ended')
+      resetDemoStatusSoon()
       return
     }
 
     setDemoCallStatus('requesting')
-    setDemoCallMessage('')
 
     try {
       const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -72,13 +77,12 @@ export default function HeroScene({ onCta, onAuth }) {
       }
 
       setDemoCallStatus('connecting')
-      setDemoCallMessage('Đang kết nối demo Retell...')
       await retellClientRef.current.startCall({
         accessToken,
       })
-    } catch (error) {
+    } catch {
       setDemoCallStatus('error')
-      setDemoCallMessage(error.message || 'Chưa mở được demo. Vui lòng kiểm tra Retell AI.')
+      resetDemoStatusSoon()
     }
   }
 
@@ -139,7 +143,7 @@ export default function HeroScene({ onCta, onAuth }) {
                   ) : null}
                 </svg>
                 <div className="demo-call-action">
-                  <div className="demo-call-orb" aria-hidden="true" />
+                  <div className={`demo-call-orb ${demoCallStatus}`} aria-hidden="true" />
                   <Motion.button
                     type="button"
                     className="demo-call-button"
@@ -154,11 +158,6 @@ export default function HeroScene({ onCta, onAuth }) {
                 </div>
               </div>
             </div>
-            {demoCallMessage ? (
-              <p className={`demo-call-status ${demoCallStatus}`}>
-                {demoCallMessage}
-              </p>
-            ) : null}
           </Motion.div>
           <Motion.div variants={fadeUp} className="mt-7 flex flex-wrap gap-3">
             {badges.map((badge) => (

@@ -120,7 +120,7 @@ export default function Portal() {
         return
       }
 
-      const data = await getVoiceDashboard(50)
+      const data = await getVoiceDashboard(100)
       setDashboard(data)
       setDataSource('live')
     } catch (error) {
@@ -145,7 +145,7 @@ export default function Portal() {
       positive: true,
     },
     {
-      label: 'Kết quả tot',
+      label: 'Kết quả tốt',
       value: `${dashboard.stats.successRate}%`,
       icon: 'task_alt',
       change: `${dashboard.stats.successfulCalls || 0} thành công, ${dashboard.stats.reviewRequiredCalls || 0} cần xem lại`,
@@ -174,7 +174,7 @@ export default function Portal() {
             <RippleText>
               <h1>LinhVoice</h1>
             </RippleText>
-            <p className="portal-subtitle">Tong quan cuộc gọi Retell, ket qua khách hàng, LinhVoice AI, hotline va kho du lieu dang dung.</p>
+            <p className="portal-subtitle">Tổng quan cuộc gọi Retell, kết quả khách hàng, LinhVoice AI, hotline và kho dữ liệu đang dùng.</p>
           </div>
           <div className="portal-header-actions">
             <span className={`portal-api-note ${dataSource === 'live' ? 'live' : ''}`}>
@@ -217,7 +217,7 @@ export default function Portal() {
           <div className="content-card">
             <div className="card-header">
               <RippleText>
-                <h3>Cuộc gọi gan day</h3>
+                <h3>Cuộc gọi gần đây</h3>
               </RippleText>
               <button className="btn-text" onClick={() => navigate('/call-history')}>Xem tất cả</button>
             </div>
@@ -283,7 +283,7 @@ export default function Portal() {
                   </div>
                   <div className="activity-content">
                     <p className="activity-title">{phoneNumber.number || phoneNumber.name}</p>
-                    <p className="activity-time">{phoneNumber.assistantName || phoneNumber.assistantId || 'Chưa gán LinhVoice'}</p>
+                    <p className="activity-time">{phoneNumber.assistantName || 'Chưa gán LinhVoice'}</p>
                   </div>
                 </div>
               ))}

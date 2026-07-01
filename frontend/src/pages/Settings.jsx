@@ -24,6 +24,17 @@ function MIcon({ name, className = '', filled = false, size = 24 }) {
   )
 }
 
+function uniqueById(items) {
+  const seenIds = new Set()
+  return items.filter((item) => {
+    const id = String(item?.id || '').trim()
+    if (!id) return true
+    if (seenIds.has(id)) return false
+    seenIds.add(id)
+    return true
+  })
+}
+
 export default function Settings() {
   const [activeSection, setActiveSection] = useState('connection')
   const [connection, setConnection] = useState({ hasApiKey: false, apiBaseUrl: '', apiKeyStatus: 'missing', message: '' })
@@ -66,7 +77,7 @@ export default function Settings() {
         getVoiceAssistants(100),
         getVoicePhoneNumbers(100),
       ])
-      setAssistants(Array.isArray(loadedAssistants) ? loadedAssistants : [])
+      setAssistants(Array.isArray(loadedAssistants) ? uniqueById(loadedAssistants) : [])
       setPhoneNumbers(Array.isArray(loadedPhoneNumbers) ? loadedPhoneNumbers : [])
     } catch (error) {
       setAssistants([])
@@ -271,7 +282,6 @@ export default function Settings() {
                           value={assistant.name || ''}
                           onChange={(event) => handleAssistantFieldChange(assistant.id, 'name', event.target.value)}
                         />
-                        <p>{assistant.id}</p>
                         <textarea
                           className="setting-textarea"
                           value={assistant.firstMessage || ''}

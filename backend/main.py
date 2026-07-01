@@ -824,6 +824,13 @@ def format_cost(value: Any) -> float:
         return 0
 
 
+def format_retell_cost(value: Any) -> float:
+    try:
+        return round(float(value or 0) / 10, 4)
+    except (TypeError, ValueError):
+        return 0
+
+
 def format_retell_product_name(value: Any) -> str:
     product = str(value or "").replace("_", " ").strip()
     return product.title() if product else "Unknown"
@@ -894,8 +901,8 @@ def normalize_call_cost_products(call: dict[str, Any]) -> list[dict[str, Any]]:
         normalized_products.append(
             {
                 "name": format_retell_product_name(product.get("product")),
-                "cost": format_cost(product.get("cost")),
-                "unitPrice": format_cost(product.get("unit_price")),
+                "cost": format_retell_cost(product.get("cost")),
+                "unitPrice": format_retell_cost(product.get("unit_price")),
             }
         )
     return normalized_products
@@ -1017,6 +1024,12 @@ def normalize_call(call: dict[str, Any]) -> dict[str, Any]:
     sentiment = normalize_sentiment(analysis.get("user_sentiment"))
     transcript_turns = normalize_transcript_turns(call)
     successful = analysis.get("call_successful")
+    retell_combined_cost = get_nested(call, "call_cost", "combined_cost")
+    cost = (
+        format_retell_cost(retell_combined_cost)
+        if retell_combined_cost is not None
+        else format_cost(call.get("cost"))
+    )
 
     return {
         "id": call.get("id") or call.get("call_id"),
@@ -1045,7 +1058,7 @@ def normalize_call(call: dict[str, Any]) -> dict[str, Any]:
         "recordingMultiChannelUrl": call.get("recording_multi_channel_url"),
         "publicLogUrl": call.get("public_log_url"),
         "knowledgeBaseRetrievedContentsUrl": call.get("knowledge_base_retrieved_contents_url"),
-        "cost": format_cost(call.get("cost") or get_nested(call, "call_cost", "combined_cost")),
+        "cost": cost,
         "costBreakdown": get_nested(call, "costBreakdown", default={}) or call.get("call_cost") or {},
         "costProducts": normalize_call_cost_products(call),
         "analysis": analysis,
@@ -1086,6 +1099,36 @@ def normalize_assistant(assistant: dict[str, Any]) -> dict[str, Any]:
         "endCallMessage": assistant.get("endCallMessage") or assistant.get("end_call_message") or "",
         "raw": assistant,
     }
+
+
+def unique_assistants(assistants: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique_items: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    for assistant in assistants:
+        assistant_id = str(assistant.get("id") or "").strip()
+        if assistant_id and assistant_id in seen_ids:
+            continue
+        if assistant_id:
+            seen_ids.add(assistant_id)
+        unique_items.append(assistant)
+
+    return unique_items
+
+
+def unique_calls(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique_items: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    for call in calls:
+        call_id = str(call.get("id") or "").strip()
+        if call_id and call_id in seen_ids:
+            continue
+        if call_id:
+            seen_ids.add(call_id)
+        unique_items.append(call)
+
+    return unique_items
 
 
 def normalize_phone_number(phone_number: dict[str, Any]) -> dict[str, Any]:
@@ -1151,7 +1194,7 @@ async def list_voice_assistants(
     current_user: User = Depends(get_current_user),
 ):
     assistants = await retell_api_request(current_user, "GET", "/list-agents")
-    return [normalize_assistant(assistant) for assistant in assistants]
+    return unique_assistants([normalize_assistant(assistant) for assistant in assistants])
 
 
 @app.get(f"{API_PREFIX}/voice/calls")
@@ -1180,7 +1223,7 @@ async def list_voice_calls(
             filter_criteria.pop("start_timestamp")
 
     calls = await retell_list_calls(current_user, limit=limit, filter_criteria=filter_criteria)
-    return [normalize_call(call) for call in calls]
+    return unique_calls([normalize_call(call) for call in calls])
 
 
 @app.get(f"{API_PREFIX}/voice/calls/{{call_id}}")
@@ -1307,14 +1350,14 @@ async def update_voice_phone_number(
 
 @app.get(f"{API_PREFIX}/voice/dashboard")
 async def get_voice_dashboard(
-    limit: int = Query(50, ge=1, le=1000),
+    limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
 ):
-    calls = [normalize_call(call) for call in await retell_list_calls(current_user, limit=limit)]
-    assistants = [
+    calls = unique_calls([normalize_call(call) for call in await retell_list_calls(current_user, limit=limit)])
+    assistants = unique_assistants([
         normalize_assistant(assistant)
         for assistant in await retell_api_request(current_user, "GET", "/list-agents")
-    ]
+    ])
     phone_numbers = [
         normalize_phone_number(phone_number)
         for phone_number in await retell_api_list_all(current_user, "GET", "/v2/list-phone-numbers", limit=100)

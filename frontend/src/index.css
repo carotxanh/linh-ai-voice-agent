@@ -1621,6 +1621,42 @@ h2.cinema-title {
   box-shadow:
     0 20px 56px rgba(14, 165, 233, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  transition: background 0.28s ease, box-shadow 0.28s ease, opacity 0.28s ease, transform 0.28s ease;
+}
+
+.demo-call-orb.requesting,
+.demo-call-orb.connecting {
+  background:
+    radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.46), transparent 14%),
+    radial-gradient(circle at 65% 40%, rgba(253, 224, 71, 0.58), transparent 26%),
+    linear-gradient(145deg, #fde68a 0%, #facc15 46%, #eab308 74%, #f97316 100%);
+  box-shadow:
+    0 20px 58px rgba(234, 179, 8, 0.36),
+    0 0 64px rgba(250, 204, 21, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+
+.demo-call-orb.connected {
+  background:
+    radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.46), transparent 14%),
+    radial-gradient(circle at 65% 40%, rgba(134, 239, 172, 0.58), transparent 26%),
+    linear-gradient(145deg, #86efac 0%, #22c55e 46%, #16a34a 74%, #14b8a6 100%);
+  box-shadow:
+    0 20px 58px rgba(34, 197, 94, 0.36),
+    0 0 64px rgba(74, 222, 128, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+
+.demo-call-orb.ended,
+.demo-call-orb.error {
+  background:
+    radial-gradient(circle at 42% 36%, rgba(255, 255, 255, 0.46), transparent 14%),
+    radial-gradient(circle at 65% 40%, rgba(252, 165, 165, 0.6), transparent 26%),
+    linear-gradient(145deg, #fca5a5 0%, #ef4444 48%, #dc2626 76%, #f97316 100%);
+  box-shadow:
+    0 20px 58px rgba(239, 68, 68, 0.36),
+    0 0 64px rgba(248, 113, 113, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .demo-call-button {
